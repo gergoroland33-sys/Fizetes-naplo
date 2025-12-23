@@ -169,7 +169,10 @@
 
             const finalCleanMoney = totalWealth - unpaidFixedSum;
             const diffFromTarget = finalCleanMoney - db.target;
-            let daily = diffFromTarget > 0 ? Math.floor(diffFromTarget / daysLeft) : Math.floor(finalCleanMoney / daysLeft);
+            
+            // MODOSITVA: Mostantól MINDIG a (Tiszta pénz - Célösszeg) / Napok alapján számol
+            // Akkor is, ha ez negatív (vagyis még nincs meg a cél).
+            let daily = Math.floor(diffFromTarget / daysLeft);
 
             document.getElementById('top-final-money').innerText = finalCleanMoney.toLocaleString() + ' Ft';
             document.getElementById('top-daily-limit').innerText = daily.toLocaleString() + ' Ft';
