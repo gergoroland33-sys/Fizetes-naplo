@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Finance Pro v8 - Profi PDF</title>
+    <title>Finance Pro v8 - Final</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
@@ -28,7 +28,7 @@
                 <h1 id="top-final-money" class="text-3xl font-extrabold text-white">0 Ft</h1>
             </div>
             <div class="text-right">
-                <p id="label-daily" class="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1">Ma költhető</p>
+                <p class="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1">Ma költhető</p>
                 <div id="top-daily-limit" class="text-xl font-bold text-emerald-400 font-mono">0 Ft</div>
             </div>
         </div>
@@ -55,7 +55,7 @@
             
             <section class="card p-5 bg-slate-800/50">
                 <div class="flex justify-between items-center text-sm">
-                    <span class="text-slate-400 font-bold uppercase text-[10px]">Fizetés napja:</span>
+                    <span class="text-slate-400 font-bold uppercase text-[10px]">Fizetés napja: <span id="display-days-left" class="text-blue-300 ml-2">0 NAP</span></span>
                     <input type="number" id="val-payday" oninput="calculate()" class="w-12 bg-slate-950 text-center rounded text-white py-2 border border-slate-700" value="10">
                 </div>
             </section>
@@ -73,16 +73,16 @@
                     <input type="text" id="val-mom-base" oninput="formatInput(this); calculate()" class="w-32 bg-transparent border-b border-orange-500 text-right font-black text-orange-400 text-xl focus:outline-none" placeholder="Összeg">
                 </div>
                 
-                <div class="bg-emerald-500/5 p-4 rounded-2xl border border-emerald-500/20 mb-6 text-center">
+                <div class="bg-emerald-500/5 p-4 rounded-2xl border border-emerald-500/20 mb-6">
                     <div class="flex gap-2">
-                        <input type="text" id="input-quick" oninput="formatInput(this)" class="input-pro border-emerald-500/40 text-emerald-400 text-center text-xl font-bold" placeholder="Összeg Ft...">
+                        <input type="text" id="input-quick" oninput="formatInput(this)" onkeydown="if(event.key === 'Enter') quickAdd()" class="input-pro border-emerald-500/40 text-emerald-400 text-center text-xl font-bold" placeholder="Összeg Ft...">
                         <button onclick="quickAdd()" class="bg-emerald-600 px-6 rounded-xl text-white"><i class="fas fa-plus"></i></button>
                     </div>
                 </div>
 
                 <div id="list-mom-refunds" class="space-y-1 divide-y divide-slate-800"></div>
 
-                <div class="mt-6 flex flex-col gap-3">
+                <div class="mt-6">
                     <button onclick="showMonthPicker()" class="w-full py-4 bg-blue-600 rounded-2xl font-bold text-white shadow-lg flex items-center justify-center gap-2">
                         <i class="fas fa-file-pdf text-xl"></i> HAVI PDF GENERÁLÁSA
                     </button>
@@ -128,6 +128,7 @@
         }
 
         function quickAdd() {
+            const el = document.getElementById('input-quick');
             const v = getNum('input-quick');
             if(v > 0) {
                 const d = new Date();
@@ -138,7 +139,8 @@
                     monthKey: d.getFullYear() + ". " + d.toLocaleString('hu-HU', { month: 'long' }),
                     time: d.toLocaleTimeString('hu-HU',{hour:'2-digit', minute:'2-digit'})
                 });
-                document.getElementById('input-quick').value = '';
+                el.value = '';
+                el.focus();
                 render();
             }
         }
@@ -148,11 +150,11 @@
             const container = document.getElementById('month-options');
             container.innerHTML = '';
             if(months.length === 0) {
-                container.innerHTML = '<p class="text-slate-500 text-center py-4 text-sm italic">Még nincsenek költések.</p>';
+                container.innerHTML = '<p class="text-slate-500 text-center py-4 text-sm italic">Nincs költés.</p>';
             } else {
                 months.forEach(m => {
                     const btn = document.createElement('button');
-                    btn.className = "w-full py-4 bg-slate-800 hover:bg-slate-700 rounded-xl font-bold text-blue-400 border border-slate-700 mb-2";
+                    btn.className = "w-full py-4 bg-slate-800 rounded-xl font-bold text-blue-400 border border-slate-700 mb-2";
                     btn.innerText = m;
                     btn.onclick = () => { generatePDF(m); closeMonthPicker(); };
                     container.appendChild(btn);
@@ -166,44 +168,17 @@
         function generatePDF(selectedMonth) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
-            
             const filteredData = db.refunds.filter(r => r.monthKey === selectedMonth);
             const totalRefunded = filteredData.reduce((s, i) => s + i.v, 0);
             const remaining = Math.max(0, db.momBase - totalRefunded);
-
-            // Cím
-            doc.setFontSize(22);
-            doc.setTextColor(40, 40, 40);
-            doc.text("Költségelszámolás", 14, 20);
-            
-            // Havi Összefoglaló doboz helyett szöveg
-            doc.setFontSize(12);
-            doc.setTextColor(100, 100, 100);
-            doc.text(`Időszak: ${selectedMonth}`, 14, 30);
-            
-            doc.setFontSize(11);
-            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(22); doc.text("Költségelszámolás", 14, 20);
+            doc.setFontSize(12); doc.text(`Időszak: ${selectedMonth}`, 14, 30);
             doc.text(`Anyu Keret: ${db.momBase.toLocaleString('hu-HU')} Ft`, 14, 45);
             doc.text(`Havi költés összesen: ${totalRefunded.toLocaleString('hu-HU')} Ft`, 14, 52);
-            
-            doc.setFontSize(12);
-            doc.setFont(undefined, 'bold');
-            doc.text(`Fennmaradó összeg: ${remaining.toLocaleString('hu-HU')} Ft`, 14, 62);
-
-            // Táblázat
+            doc.setFont(undefined, 'bold'); doc.text(`Fennmaradó: ${remaining.toLocaleString('hu-HU')} Ft`, 14, 62);
             const tableData = filteredData.map(r => [r.dateStr + " " + r.time, r.v.toLocaleString('hu-HU') + " Ft"]);
-
-            doc.autoTable({
-                startY: 70,
-                head: [['Dátum és Idő', 'Kiadás összege']],
-                body: tableData,
-                theme: 'grid',
-                headStyles: { fillColor: [59, 130, 246], fontStyle: 'bold' },
-                styles: { fontSize: 10, cellPadding: 5 },
-                columnStyles: { 1: { halign: 'right' } }
-            });
-
-            doc.save(`elszamolas_${selectedMonth.replace(/\s/g, '')}.pdf`);
+            doc.autoTable({ startY: 70, head: [['Dátum', 'Összeg']], body: tableData, theme: 'grid' });
+            doc.save(`anyu_${selectedMonth.replace(/\s/g, '')}.pdf`);
         }
 
         function calculate() {
@@ -222,13 +197,26 @@
                 if(paidEl) ex.paid = paidEl.checked;
             });
 
+            // NAP SZÁMÍTÁS
+            const now = new Date();
+            let targetDate = new Date(now.getFullYear(), now.getMonth(), db.payday);
+            if(now.getDate() >= db.payday) targetDate = new Date(now.getFullYear(), now.getMonth()+1, db.payday);
+            const daysLeft = Math.max(1, Math.ceil((targetDate - now) / (1000 * 60 * 60 * 24)));
+
             const totalWealth = db.salary + db.cash; 
             const totalRefunds = db.refunds.reduce((s,i) => s + i.v, 0); 
             const momFinal = Math.max(0, db.momBase - totalRefunds); 
             const unpaidFixedSum = db.expenses.reduce((s,i) => s + (i.paid ? 0 : i.v), 0) + momFinal; 
             const finalCleanMoney = totalWealth - unpaidFixedSum;
+            
+            // NAPI LIMIT SZÁMÍTÁS (Tiszta pénz - Cél) / Hátralévő napok
+            const diffFromTarget = finalCleanMoney - db.target;
+            const daily = diffFromTarget > 0 ? Math.floor(diffFromTarget / daysLeft) : 0;
 
             document.getElementById('top-final-money').innerText = finalCleanMoney.toLocaleString('hu-HU') + ' Ft';
+            document.getElementById('top-daily-limit').innerText = daily.toLocaleString('hu-HU') + ' Ft';
+            document.getElementById('display-days-left').innerText = daysLeft + " NAP";
+            
             localStorage.setItem('fin_v8_final', JSON.stringify(db));
         }
 
@@ -237,11 +225,12 @@
             document.getElementById('val-cash').value = db.cash > 0 ? db.cash.toLocaleString('hu-HU') + ' Ft' : '';
             document.getElementById('val-target').value = db.target > 0 ? db.target.toLocaleString('hu-HU') + ' Ft' : '';
             document.getElementById('val-mom-base').value = db.momBase > 0 ? db.momBase.toLocaleString('hu-HU') + ' Ft' : '';
+            document.getElementById('val-payday').value = db.payday;
 
             const exCont = document.getElementById('list-expenses');
             exCont.innerHTML = db.expenses.map(ex => `
                 <div class="flex gap-2 items-center bg-slate-900/40 p-2 rounded-xl border border-slate-800">
-                    <input type="checkbox" id="ex-p-${ex.id}" ${ex.paid ? 'checked' : ''} onchange="calculate()" class="w-6 h-6 rounded border-slate-700 bg-slate-800">
+                    <input type="checkbox" id="ex-p-${ex.id}" ${ex.paid ? 'checked' : ''} onchange="calculate()" class="w-6 h-6">
                     <input type="text" id="ex-n-${ex.id}" value="${ex.n}" oninput="calculate()" class="input-pro text-xs py-2 border-none bg-transparent" placeholder="Név">
                     <input type="text" id="ex-v-${ex.id}" value="${ex.v > 0 ? ex.v.toLocaleString('hu-HU') + ' Ft' : ''}" oninput="formatInput(this); calculate()" class="input-pro w-28 text-right py-2 font-bold border-none bg-transparent" placeholder="0 Ft">
                     <button onclick="remove(${ex.id}, 'expenses')" class="text-slate-600 px-2">✕</button>
@@ -251,12 +240,9 @@
             const refCont = document.getElementById('list-mom-refunds');
             refCont.innerHTML = db.refunds.map(ref => `
                 <div class="flex justify-between items-center py-4 border-slate-800">
-                    <div class="flex flex-col">
-                        <span class="text-xs text-slate-400 font-bold">${ref.dateStr}</span>
-                        <span class="text-[10px] text-slate-600">${ref.time}</span>
-                    </div>
+                    <div class="flex flex-col"><span class="text-xs text-slate-400">${ref.dateStr}</span><span class="text-[10px] text-slate-600">${ref.time}</span></div>
                     <span class="text-emerald-400 font-black">+ ${ref.v.toLocaleString('hu-HU')} Ft</span>
-                    <button onclick="remove(${ref.id}, 'refunds')" class="text-slate-700 text-xs font-bold px-3">TÖRÖL</button>
+                    <button onclick="remove(${ref.id}, 'refunds')" class="text-slate-700 text-xs px-3">TÖRÖL</button>
                 </div>
             `).join('');
             calculate();
