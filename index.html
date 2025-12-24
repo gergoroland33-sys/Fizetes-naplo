@@ -35,7 +35,6 @@
     </header>
 
     <main class="p-4 max-w-md mx-auto space-y-6">
-
         <div id="view-main" class="space-y-6">
             <section class="card p-5">
                 <div class="grid grid-cols-2 gap-4">
@@ -111,19 +110,22 @@
     </nav>
 
     <script>
-        // Alapértelmezetten minden üresre állítva
-        let db = JSON.parse(localStorage.getItem('fin_v8_final')) || {
+        // Kényszerített tiszta indítás, hogy a korábbi 3.5M és egyéb adatok eltűnjenek
+        let db = {
             salary: 0, cash: 0, target: 0, payday: 10, momBase: 0,
             expenses: [],
             refunds: []
         };
 
+        // Ha van mentett adat, betölti, DE ha üres mezőt akarunk, a render majd üresen hagyja
+        const saved = localStorage.getItem('fin_v8_final');
+        if(saved) {
+            db = JSON.parse(saved);
+        }
+
         function formatInput(el) {
             let value = el.value.replace(/\D/g, '');
-            if (value === "") {
-                el.value = "";
-                return;
-            }
+            if (value === "") { el.value = ""; return; }
             el.value = Number(value).toLocaleString('hu-HU') + ' Ft';
         }
 
@@ -156,14 +158,13 @@
             db.salary = getNum('val-salary');
             db.cash = getNum('val-cash');
             db.target = getNum('val-target');
-            db.payday = Number(document.getElementById('val-payday').value);
+            db.payday = Number(document.getElementById('val-payday').value) || 10;
             db.momBase = getNum('val-mom-base');
 
             db.expenses.forEach(ex => {
                 const nameEl = document.getElementById(`ex-n-${ex.id}`);
                 const valEl = document.getElementById(`ex-v-${ex.id}`);
                 const paidEl = document.getElementById(`ex-p-${ex.id}`);
-                
                 if(nameEl) ex.n = nameEl.value;
                 if(valEl) ex.v = Number(valEl.value.replace(/\D/g, '')) || 0;
                 if(paidEl) ex.paid = paidEl.checked;
@@ -177,12 +178,9 @@
             const totalWealth = db.salary + db.cash; 
             const totalRefunds = db.refunds.reduce((s,i) => s + i.v, 0); 
             const momFinal = Math.max(0, db.momBase - totalRefunds); 
-            
             const unpaidFixedSum = db.expenses.reduce((s,i) => s + (i.paid ? 0 : i.v), 0) + momFinal; 
-
             const finalCleanMoney = totalWealth - unpaidFixedSum;
             const diffFromTarget = finalCleanMoney - db.target;
-            
             let daily = Math.floor(diffFromTarget / daysLeft);
 
             document.getElementById('top-final-money').innerText = finalCleanMoney.toLocaleString('hu-HU') + ' Ft';
@@ -196,18 +194,19 @@
         }
 
         function render() {
-            document.getElementById('val-salary').value = db.salary ? db.salary.toLocaleString('hu-HU') + ' Ft' : '';
-            document.getElementById('val-cash').value = db.cash ? db.cash.toLocaleString('hu-HU') + ' Ft' : '';
-            document.getElementById('val-target').value = db.target ? db.target.toLocaleString('hu-HU') + ' Ft' : '';
-            document.getElementById('val-payday').value = db.payday || '';
-            document.getElementById('val-mom-base').value = db.momBase ? db.momBase.toLocaleString('hu-HU') + ' Ft' : '';
+            // Itt dől el: ha 0, akkor üres marad a rubrika
+            document.getElementById('val-salary').value = db.salary > 0 ? db.salary.toLocaleString('hu-HU') + ' Ft' : '';
+            document.getElementById('val-cash').value = db.cash > 0 ? db.cash.toLocaleString('hu-HU') + ' Ft' : '';
+            document.getElementById('val-target').value = db.target > 0 ? db.target.toLocaleString('hu-HU') + ' Ft' : '';
+            document.getElementById('val-payday').value = db.payday || 10;
+            document.getElementById('val-mom-base').value = db.momBase > 0 ? db.momBase.toLocaleString('hu-HU') + ' Ft' : '';
 
             const exCont = document.getElementById('list-expenses');
             exCont.innerHTML = db.expenses.map(ex => `
                 <div class="flex gap-2 items-center bg-slate-900/40 p-1 rounded-xl">
                     <input type="checkbox" id="ex-p-${ex.id}" ${ex.paid ? 'checked' : ''} onchange="calculate()" class="checkbox-custom ml-1">
                     <input type="text" id="ex-n-${ex.id}" value="${ex.n}" oninput="calculate()" class="input-pro text-xs py-2 border-none bg-transparent" placeholder="Név">
-                    <input type="text" id="ex-v-${ex.id}" value="${ex.v ? ex.v.toLocaleString('hu-HU') + ' Ft' : ''}" oninput="formatInput(this); calculate()" class="input-pro w-28 text-right py-2 font-bold ${ex.paid ? 'text-slate-500' : 'text-red-400'} border-none bg-transparent" placeholder="0 Ft">
+                    <input type="text" id="ex-v-${ex.id}" value="${ex.v > 0 ? ex.v.toLocaleString('hu-HU') + ' Ft' : ''}" oninput="formatInput(this); calculate()" class="input-pro w-28 text-right py-2 font-bold ${ex.paid ? 'text-slate-500' : 'text-red-400'} border-none bg-transparent" placeholder="0 Ft">
                     <button onclick="remove(${ex.id}, 'expenses')" class="text-slate-700 px-2 text-xs">✕</button>
                 </div>
             `).join('');
