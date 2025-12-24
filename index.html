@@ -18,7 +18,6 @@
         .sticky-header { position: sticky; top: 0; z-index: 100; background: rgba(2, 6, 23, 0.95); backdrop-filter: blur(12px); border-bottom: 1px solid #1e293b; }
         #month-modal { background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); }
 
-        /* MODERN KAPCSOLÓ (TOGGLE) STÍLUS */
         .switch { position: relative; display: inline-block; min-width: 44px; height: 24px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .4s; border-radius: 34px; }
@@ -195,25 +194,60 @@
             const totalRefunded = filteredData.reduce((s, i) => s + i.v, 0);
             const remaining = Math.max(0, db.momBase - totalRefunded);
             
-            doc.setFontSize(22); doc.text("Költségelszámolás", 14, 20);
-            doc.setFontSize(12); doc.text(`Időszak: ${selectedMonth}`, 14, 30);
-            doc.text(`Anyu Keret: ${db.momBase.toLocaleString('hu-HU')} Ft`, 14, 45);
-            doc.text(`Havi költés összesen: ${totalRefunded.toLocaleString('hu-HU')} Ft`, 14, 52);
-            doc.setFont(undefined, 'bold'); doc.text(`Fennmaradó: ${remaining.toLocaleString('hu-HU')} Ft`, 14, 62);
+            // MOBILBARÁT STÍLUS: Nagyobb betűk és szebb elrendezés
+            doc.setFontSize(26);
+            doc.setTextColor(20, 30, 50);
+            doc.text("Havi Elszámolás", 14, 25);
             
+            doc.setFontSize(14);
+            doc.setTextColor(100, 110, 130);
+            doc.text(`Időszak: ${selectedMonth}`, 14, 35);
+            
+            // Összesítő szekció
+            doc.setDrawColor(200, 200, 200);
+            doc.line(14, 42, 196, 42);
+            
+            doc.setFontSize(16);
+            doc.setTextColor(0, 0, 0);
+            doc.text(`Alapkeret:`, 14, 55);
+            doc.text(`${db.momBase.toLocaleString('hu-HU')} Ft`, 196, 55, { align: 'right' });
+            
+            doc.setTextColor(0, 150, 80);
+            doc.text(`Összes költés:`, 14, 65);
+            doc.text(`${totalRefunded.toLocaleString('hu-HU')} Ft`, 196, 65, { align: 'right' });
+            
+            doc.setFontSize(18);
+            doc.setTextColor(230, 100, 0);
+            doc.setFont(undefined, 'bold');
+            doc.text(`Fennmaradó egyenleg:`, 14, 80);
+            doc.text(`${remaining.toLocaleString('hu-HU')} Ft`, 196, 80, { align: 'right' });
+
             const tableData = filteredData.map(r => [r.dateStr + " " + r.time, r.v.toLocaleString('hu-HU') + " Ft"]);
-            doc.autoTable({ startY: 70, head: [['Dátum', 'Összeg']], body: tableData, theme: 'grid' });
+            
+            doc.autoTable({
+                startY: 90,
+                head: [['Időpont', 'Összeg']],
+                body: tableData,
+                theme: 'striped',
+                headStyles: { fillColor: [30, 41, 59], fontSize: 14, halign: 'center', cellPadding: 5 },
+                bodyStyles: { fontSize: 13, cellPadding: 6, textColor: [50, 50, 50] },
+                columnStyles: {
+                    0: { cellWidth: 100 },
+                    1: { cellWidth: 'auto', halign: 'right', fontStyle: 'bold' }
+                },
+                margin: { left: 14, right: 14 }
+            });
 
             const pdfOutput = doc.output('blob');
-            const fileName = `anyu_${selectedMonth.replace(/\s/g, '')}.pdf`;
+            const fileName = `elszamolas_${selectedMonth.replace(/\s/g, '')}.pdf`;
             const file = new File([pdfOutput], fileName, { type: 'application/pdf' });
 
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 try {
                     await navigator.share({
                         files: [file],
-                        title: 'Anyu Elszámolás',
-                        text: `${selectedMonth} havi elszámolás`
+                        title: 'Finance Elszámolás',
+                        text: `${selectedMonth} havi elszámolás PDF`
                     });
                 } catch (err) {
                     doc.save(fileName);
