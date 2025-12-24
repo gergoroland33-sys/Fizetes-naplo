@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Finance Pro v8 - Checklist</title>
+    <title>Finance Pro v8 - Havi PDF</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
@@ -16,9 +16,9 @@
         .nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 12px; color: #64748b; }
         .nav-btn.active { color: #3b82f6; border-bottom: 3px solid #3b82f6; }
         .sticky-header { position: sticky; top: 0; z-index: 100; background: rgba(2, 6, 23, 0.95); backdrop-filter: blur(12px); border-bottom: 1px solid #1e293b; }
-        .checkbox-custom { width: 26px; height: 26px; border-radius: 6px; border: 2px solid #475569; appearance: none; cursor: pointer; position: relative; }
-        .checkbox-custom:checked { background-color: #10b981; border-color: #10b981; }
-        .checkbox-custom:checked::after { content: '\f00c'; font-family: 'Font Awesome 6 Free'; font-weight: 900; color: white; font-size: 14px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        
+        /* Modal stílus a hónap választóhoz */
+        #month-modal { background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); }
     </style>
 </head>
 <body class="pb-28">
@@ -54,27 +54,17 @@
                     </div>
                 </div>
             </section>
-
+            
             <section class="card p-5 bg-slate-800/50">
                 <div class="flex justify-between items-center text-sm">
                     <span class="text-slate-400 font-bold uppercase text-[10px]">Fizetés napja:</span>
-                    <div class="flex items-center gap-2">
-                        <input type="number" id="val-payday" oninput="calculate()" class="w-12 bg-slate-950 text-center rounded text-white py-2 border border-slate-700" value="10">
-                        <span id="display-days-left" class="font-bold text-blue-300 text-[10px]">0 NAP</span>
-                    </div>
-                </div>
-                <div class="flex justify-between pt-3 mt-3 border-t border-slate-700">
-                    <span class="text-slate-400 text-[10px] uppercase font-bold">Még fizetendő:</span>
-                    <span id="display-fixed-sum" class="font-bold text-red-400">0 Ft</span>
+                    <input type="number" id="val-payday" oninput="calculate()" class="w-12 bg-slate-950 text-center rounded text-white py-2 border border-slate-700" value="10">
                 </div>
             </section>
 
             <section class="card p-5 border-l-4 border-red-500">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-[10px] font-black text-red-500 uppercase tracking-widest italic">Havi Fixek</h2>
-                </div>
                 <div id="list-expenses" class="space-y-2 mb-4"></div>
-                <button onclick="addExpense()" class="w-full py-3 border-2 border-dashed border-slate-700 rounded-xl text-slate-500 text-[10px] font-bold uppercase tracking-widest">+ Új számla</button>
+                <button onclick="addExpense()" class="w-full py-3 border-2 border-dashed border-slate-700 rounded-xl text-slate-500 text-[10px] font-bold uppercase">+ Új számla</button>
             </section>
         </div>
 
@@ -82,7 +72,7 @@
             <section class="card p-5 border-t-4 border-orange-500">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-lg font-bold italic text-orange-400">Anyu Keret</h2>
-                    <input type="text" id="val-mom-base" oninput="formatInput(this); calculate()" class="w-32 bg-transparent border-b border-orange-500 text-right font-black text-orange-400 text-xl focus:outline-none" placeholder="Írj ide">
+                    <input type="text" id="val-mom-base" oninput="formatInput(this); calculate()" class="w-32 bg-transparent border-b border-orange-500 text-right font-black text-orange-400 text-xl focus:outline-none" placeholder="Összeg">
                 </div>
                 
                 <div class="bg-emerald-500/5 p-4 rounded-2xl border border-emerald-500/20 mb-6 text-center">
@@ -95,11 +85,7 @@
                 <div id="list-mom-refunds" class="space-y-1 divide-y divide-slate-800"></div>
 
                 <div class="mt-6 flex flex-col gap-3">
-                    <div class="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex justify-between items-center">
-                        <span id="display-mom-final" class="text-lg font-black text-orange-500">0 Ft</span>
-                        <span id="display-refund-sum" class="text-lg font-black text-emerald-500">0 Ft</span>
-                    </div>
-                    <button onclick="exportMomPDF()" class="w-full py-4 bg-blue-600 rounded-2xl font-bold text-white shadow-lg flex items-center justify-center gap-2">
+                    <button onclick="showMonthPicker()" class="w-full py-4 bg-blue-600 rounded-2xl font-bold text-white shadow-lg flex items-center justify-center gap-2">
                         <i class="fas fa-file-pdf text-xl"></i> PDF MEGOSZTÁSA ANYUNAK
                     </button>
                 </div>
@@ -107,9 +93,18 @@
         </div>
     </main>
 
+    <div id="month-modal" class="fixed inset-0 z-[200] hidden flex items-center justify-center p-6">
+        <div class="bg-slate-900 border border-slate-700 w-full max-w-sm rounded-3xl p-6 shadow-2xl">
+            <h3 class="text-lg font-bold mb-4 text-white">Melyik hónapot küldöd?</h3>
+            <div id="month-options" class="space-y-2 max-h-60 overflow-y-auto mb-6">
+                </div>
+            <button onclick="closeMonthPicker()" class="w-full py-3 text-slate-400 font-bold">Mégse</button>
+        </div>
+    </div>
+
     <nav class="fixed bottom-0 left-0 right-0 h-20 bg-slate-950 border-t border-slate-800 flex z-50">
         <button onclick="setTab('main')" id="nav-main" class="nav-btn active">
-            <i class="fas fa-wallet text-xl mb-1"></i><span class="text-[9px] font-bold uppercase">Költségvetés</span>
+            <i class="fas fa-wallet text-xl mb-1"></i><span class="text-[9px] font-bold uppercase">Pénzügyek</span>
         </button>
         <button onclick="setTab('mom')" id="nav-mom" class="nav-btn">
             <i class="fas fa-hand-holding-heart text-xl mb-1"></i><span class="text-[9px] font-bold uppercase">Anyu</span>
@@ -124,24 +119,15 @@
 
         function formatInput(el) {
             let cursor = el.selectionStart;
-            let oldLen = el.value.length;
             let val = el.value.replace(/\D/g, '');
-            
             if (val === "") { el.value = ""; return; }
-            
-            let formatted = Number(val).toLocaleString('hu-HU') + ' Ft';
-            el.value = formatted;
-            
-            // Kurzor pozíció korrekció törlésnél/írásnál
-            let newLen = formatted.length;
-            let diff = newLen - oldLen;
-            el.setSelectionRange(cursor + diff, cursor + diff);
+            el.value = Number(val).toLocaleString('hu-HU') + ' Ft';
+            el.setSelectionRange(cursor, cursor); 
         }
 
         function getNum(id) {
             const el = document.getElementById(id);
-            if (!el || !el.value) return 0;
-            return Number(el.value.replace(/\D/g, '')) || 0;
+            return el ? (Number(el.value.replace(/\D/g, '')) || 0) : 0;
         }
 
         function quickAdd() {
@@ -151,13 +137,66 @@
                 db.refunds.unshift({
                     id: Date.now(), 
                     v: v, 
-                    fullDate: d.toLocaleDateString('hu-HU'),
+                    dateStr: d.toLocaleDateString('hu-HU'),
+                    monthKey: d.getFullYear() + ". " + d.toLocaleString('hu-HU', { month: 'long' }),
                     time: d.toLocaleTimeString('hu-HU',{hour:'2-digit', minute:'2-digit'})
                 });
                 document.getElementById('input-quick').value = '';
                 render();
             }
         }
+
+        // --- PDF ÉS HÓNAP VÁLASZTÓ LOGIKA ---
+
+        function showMonthPicker() {
+            const months = [...new Set(db.refunds.map(r => r.monthKey))];
+            const container = document.getElementById('month-options');
+            container.innerHTML = '';
+
+            if(months.length === 0) {
+                container.innerHTML = '<p class="text-slate-500 text-center py-4 text-sm italic">Még nincsenek adatok.</p>';
+            } else {
+                months.forEach(m => {
+                    const btn = document.createElement('button');
+                    btn.className = "w-full py-4 bg-slate-800 hover:bg-slate-700 rounded-xl font-bold text-blue-400 border border-slate-700";
+                    btn.innerText = m;
+                    btn.onclick = () => { generatePDF(m); closeMonthPicker(); };
+                    container.appendChild(btn);
+                });
+            }
+            document.getElementById('month-modal').classList.remove('hidden');
+        }
+
+        function closeMonthPicker() {
+            document.getElementById('month-modal').classList.add('hidden');
+        }
+
+        function generatePDF(selectedMonth) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            const filteredData = db.refunds.filter(r => r.monthKey === selectedMonth);
+            const total = filteredData.reduce((s, i) => s + i.v, 0);
+
+            doc.setFontSize(18);
+            doc.text(`Anyu Elszámolás - ${selectedMonth}`, 14, 20);
+            
+            const tableData = filteredData.map(r => [r.dateStr + " " + r.time, r.v.toLocaleString('hu-HU') + " Ft"]);
+
+            doc.autoTable({
+                startY: 30,
+                head: [['Dátum / Idő', 'Összeg']],
+                body: tableData,
+                foot: [['ÖSSZESEN:', total.toLocaleString('hu-HU') + " Ft"]],
+                theme: 'striped',
+                headStyles: { fillColor: [59, 130, 246] },
+                footStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255] }
+            });
+
+            doc.save(`elszamolas_${selectedMonth.replace(/\s/g, '')}.pdf`);
+        }
+
+        // --- ALAP FUNKCIÓK ---
 
         function calculate() {
             db.salary = getNum('val-salary');
@@ -175,25 +214,13 @@
                 if(paidEl) ex.paid = paidEl.checked;
             });
 
-            const now = new Date();
-            let targetDate = new Date(now.getFullYear(), now.getMonth(), db.payday);
-            if(now.getDate() >= db.payday) targetDate = new Date(now.getFullYear(), now.getMonth()+1, db.payday);
-            const daysLeft = Math.max(1, Math.ceil((targetDate - now) / (1000 * 60 * 60 * 24)));
-
             const totalWealth = db.salary + db.cash; 
             const totalRefunds = db.refunds.reduce((s,i) => s + i.v, 0); 
             const momFinal = Math.max(0, db.momBase - totalRefunds); 
             const unpaidFixedSum = db.expenses.reduce((s,i) => s + (i.paid ? 0 : i.v), 0) + momFinal; 
             const finalCleanMoney = totalWealth - unpaidFixedSum;
-            const diffFromTarget = finalCleanMoney - db.target;
-            let daily = Math.floor(diffFromTarget / daysLeft);
 
             document.getElementById('top-final-money').innerText = finalCleanMoney.toLocaleString('hu-HU') + ' Ft';
-            document.getElementById('top-daily-limit').innerText = daily.toLocaleString('hu-HU') + ' Ft';
-            document.getElementById('display-days-left').innerText = daysLeft + ' NAP';
-            document.getElementById('display-fixed-sum').innerText = unpaidFixedSum.toLocaleString('hu-HU') + ' Ft';
-            document.getElementById('display-mom-final').innerText = "Anyu: " + momFinal.toLocaleString('hu-HU') + " Ft";
-            document.getElementById('display-refund-sum').innerText = "Vissza: " + totalRefunds.toLocaleString('hu-HU') + " Ft";
             
             localStorage.setItem('fin_v8_final', JSON.stringify(db));
         }
@@ -202,56 +229,31 @@
             document.getElementById('val-salary').value = db.salary > 0 ? db.salary.toLocaleString('hu-HU') + ' Ft' : '';
             document.getElementById('val-cash').value = db.cash > 0 ? db.cash.toLocaleString('hu-HU') + ' Ft' : '';
             document.getElementById('val-target').value = db.target > 0 ? db.target.toLocaleString('hu-HU') + ' Ft' : '';
-            document.getElementById('val-payday').value = db.payday || 10;
             document.getElementById('val-mom-base').value = db.momBase > 0 ? db.momBase.toLocaleString('hu-HU') + ' Ft' : '';
 
             const exCont = document.getElementById('list-expenses');
             exCont.innerHTML = db.expenses.map(ex => `
-                <div class="flex gap-2 items-center bg-slate-900/40 p-2 rounded-xl">
-                    <input type="checkbox" id="ex-p-${ex.id}" ${ex.paid ? 'checked' : ''} onchange="calculate()" class="checkbox-custom ml-1">
+                <div class="flex gap-2 items-center bg-slate-900/40 p-2 rounded-xl border border-slate-800">
+                    <input type="checkbox" id="ex-p-${ex.id}" ${ex.paid ? 'checked' : ''} onchange="calculate()" class="w-6 h-6 rounded border-slate-700 bg-slate-800">
                     <input type="text" id="ex-n-${ex.id}" value="${ex.n}" oninput="calculate()" class="input-pro text-xs py-2 border-none bg-transparent" placeholder="Név">
-                    <input type="text" id="ex-v-${ex.id}" value="${ex.v > 0 ? ex.v.toLocaleString('hu-HU') + ' Ft' : ''}" oninput="formatInput(this); calculate()" class="input-pro w-28 text-right py-2 font-bold ${ex.paid ? 'text-slate-500' : 'text-red-400'} border-none bg-transparent" placeholder="0 Ft">
+                    <input type="text" id="ex-v-${ex.id}" value="${ex.v > 0 ? ex.v.toLocaleString('hu-HU') + ' Ft' : ''}" oninput="formatInput(this); calculate()" class="input-pro w-28 text-right py-2 font-bold border-none bg-transparent" placeholder="0 Ft">
                     <button onclick="remove(${ex.id}, 'expenses')" class="text-slate-600 px-2">✕</button>
                 </div>
             `).join('');
 
             const refCont = document.getElementById('list-mom-refunds');
             refCont.innerHTML = db.refunds.map(ref => `
-                <div class="flex justify-between items-center py-3 border-slate-800">
+                <div class="flex justify-between items-center py-4 border-slate-800">
                     <div class="flex flex-col">
-                        <span class="text-[10px] text-slate-500 font-bold">${ref.fullDate}</span>
-                        <span class="text-[9px] text-slate-600">${ref.time}</span>
+                        <span class="text-xs text-slate-400 font-bold">${ref.dateStr}</span>
+                        <span class="text-[10px] text-slate-600">${ref.time}</span>
                     </div>
                     <span class="text-emerald-400 font-black">+ ${ref.v.toLocaleString('hu-HU')} Ft</span>
-                    <button onclick="remove(${ref.id}, 'refunds')" class="text-slate-700 text-[10px] font-bold">TÖRÖL</button>
+                    <button onclick="remove(${ref.id}, 'refunds')" class="text-slate-700 text-xs font-bold px-3">TÖRÖL</button>
                 </div>
             `).join('');
 
             calculate();
-        }
-
-        async function exportMomPDF() {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            
-            doc.setFontSize(18);
-            doc.text("Anyu Költségelszámolás", 14, 20);
-            doc.setFontSize(10);
-            doc.text(`Készült: ${new Date().toLocaleString('hu-HU')}`, 14, 28);
-
-            const tableData = db.refunds.map(r => [r.fullDate + " " + r.time, r.v.toLocaleString('hu-HU') + " Ft"]);
-            const total = db.refunds.reduce((s,i) => s + i.v, 0);
-
-            doc.autoTable({
-                startY: 35,
-                head: [['Dátum', 'Összeg']],
-                body: tableData,
-                foot: [['ÖSSZESEN VISSZAFIZETVE:', total.toLocaleString('hu-HU') + " Ft"]],
-                theme: 'striped',
-                headStyles: { fillColor: [16, 185, 129] }
-            });
-
-            doc.save(`anyu_elszamolas_${new Date().toISOString().slice(0,10)}.pdf`);
         }
 
         function setTab(t) {
