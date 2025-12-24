@@ -17,6 +17,14 @@
         .nav-btn.active { color: #3b82f6; border-bottom: 3px solid #3b82f6; }
         .sticky-header { position: sticky; top: 0; z-index: 100; background: rgba(2, 6, 23, 0.95); backdrop-filter: blur(12px); border-bottom: 1px solid #1e293b; }
         #month-modal { background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); }
+
+        /* MODERN KAPCSOLÓ (TOGGLE) STÍLUS */
+        .switch { position: relative; display: inline-block; min-width: 44px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #10b981; }
+        input:checked + .slider:before { transform: translateX(20px); }
     </style>
 </head>
 <body class="pb-28">
@@ -40,7 +48,7 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div class="col-span-2 space-y-1">
                         <label class="text-[10px] font-bold text-slate-400 ml-1 italic">Fizetés + Meglévő</label>
-                        <input type="text" id="val-salary" oninput="formatInput(this); calculate()" class="input-pro text-xl font-bold text-blue-400" placeholder="Összeg">
+                        <input type="text" id="val-salary" oninput="formatInput(this); calculate()" class="input-pro text-xl font-bold text-blue-400" placeholder="Írj ide összeget">
                     </div>
                     <div class="space-y-1">
                         <label class="text-[10px] font-bold text-slate-400 ml-1 italic">Készpénz</label>
@@ -48,7 +56,7 @@
                     </div>
                     <div class="space-y-1">
                         <label class="text-[10px] font-bold text-slate-400 ml-1 italic">Célösszeg</label>
-                        <input type="text" id="val-target" oninput="formatInput(this); calculate()" class="input-pro" placeholder="Összeg">
+                        <input type="text" id="val-target" oninput="formatInput(this); calculate()" class="input-pro" placeholder="Írj ide összeget">
                     </div>
                 </div>
             </section>
@@ -74,7 +82,7 @@
             <section class="card p-5 border-t-4 border-orange-500">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-lg font-bold italic text-orange-400">Anyu Keret</h2>
-                    <input type="text" id="val-mom-base" oninput="formatInput(this); calculate()" class="w-32 bg-transparent border-b border-orange-500 text-right font-black text-orange-400 text-xl focus:outline-none" placeholder="Összeg">
+                    <input type="text" id="val-mom-base" oninput="formatInput(this); calculate()" class="w-32 bg-transparent border-b border-orange-500 text-right font-black text-orange-400 text-xl focus:outline-none" placeholder="Írj ide">
                 </div>
 
                 <div class="flex justify-between items-center bg-slate-900/80 p-3 rounded-xl border border-slate-800 mb-4 shadow-inner">
@@ -200,7 +208,6 @@
             const fileName = `anyu_${selectedMonth.replace(/\s/g, '')}.pdf`;
             const file = new File([pdfOutput], fileName, { type: 'application/pdf' });
 
-            // WEB SHARE API MEGHÍVÁSA
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 try {
                     await navigator.share({
@@ -209,10 +216,10 @@
                         text: `${selectedMonth} havi elszámolás`
                     });
                 } catch (err) {
-                    doc.save(fileName); // Ha mégis hiba lenne vagy nem támogatja, simán letölti
+                    doc.save(fileName);
                 }
             } else {
-                doc.save(fileName); // Régebbi böngészőkön marad a sima letöltés
+                doc.save(fileName);
             }
         }
 
@@ -266,9 +273,12 @@
             const exCont = document.getElementById('list-expenses');
             exCont.innerHTML = db.expenses.map(ex => `
                 <div class="flex gap-2 items-center bg-slate-900/40 p-2 rounded-xl border border-slate-800">
-                    <input type="checkbox" id="ex-p-${ex.id}" ${ex.paid ? 'checked' : ''} onchange="calculate()" class="w-6 h-6 rounded border-slate-700 bg-slate-800">
+                    <label class="switch ml-1">
+                        <input type="checkbox" id="ex-p-${ex.id}" ${ex.paid ? 'checked' : ''} onchange="calculate(); render()">
+                        <span class="slider"></span>
+                    </label>
                     <input type="text" id="ex-n-${ex.id}" value="${ex.n}" oninput="calculate()" class="input-pro text-xs py-2 border-none bg-transparent" placeholder="Név">
-                    <input type="text" id="ex-v-${ex.id}" value="${ex.v > 0 ? ex.v.toLocaleString('hu-HU') + ' Ft' : ''}" oninput="formatInput(this); calculate()" class="input-pro w-28 text-right py-2 font-bold border-none bg-transparent" placeholder="0 Ft">
+                    <input type="text" id="ex-v-${ex.id}" value="${ex.v > 0 ? ex.v.toLocaleString('hu-HU') + ' Ft' : ''}" oninput="formatInput(this); calculate()" class="input-pro w-28 text-right py-2 font-bold border-none bg-transparent ${ex.paid ? 'text-slate-500' : 'text-red-500'}" placeholder="0 Ft">
                     <button onclick="remove(${ex.id}, 'expenses')" class="text-slate-600 px-2">✕</button>
                 </div>
             `).join('');
@@ -292,7 +302,15 @@
         }
 
         function addExpense() { db.expenses.push({id: Date.now(), n: '', v: 0, paid: false}); render(); }
-        function remove(id, type) { db[type] = db[type].filter(x => x.id !== id); calculate(); render(); }
+        
+        function remove(id, type) { 
+            if(confirm("Biztosan törölni szeretnéd ezt a tételt?")) {
+                db[type] = db[type].filter(x => x.id !== id); 
+                calculate(); 
+                render(); 
+            }
+        }
+        
         window.onload = render;
     </script>
 </body>
