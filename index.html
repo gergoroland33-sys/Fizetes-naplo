@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Finance Pro v8 - Havi PDF</title>
+    <title>Finance Pro v8 - Profi PDF</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
@@ -16,9 +16,7 @@
         .nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 12px; color: #64748b; }
         .nav-btn.active { color: #3b82f6; border-bottom: 3px solid #3b82f6; }
         .sticky-header { position: sticky; top: 0; z-index: 100; background: rgba(2, 6, 23, 0.95); backdrop-filter: blur(12px); border-bottom: 1px solid #1e293b; }
-        
-        /* Modal stílus a hónap választóhoz */
-        #month-modal { background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); }
+        #month-modal { background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); }
     </style>
 </head>
 <body class="pb-28">
@@ -86,7 +84,7 @@
 
                 <div class="mt-6 flex flex-col gap-3">
                     <button onclick="showMonthPicker()" class="w-full py-4 bg-blue-600 rounded-2xl font-bold text-white shadow-lg flex items-center justify-center gap-2">
-                        <i class="fas fa-file-pdf text-xl"></i> PDF MEGOSZTÁSA ANYUNAK
+                        <i class="fas fa-file-pdf text-xl"></i> HAVI PDF GENERÁLÁSA
                     </button>
                 </div>
             </section>
@@ -96,8 +94,7 @@
     <div id="month-modal" class="fixed inset-0 z-[200] hidden flex items-center justify-center p-6">
         <div class="bg-slate-900 border border-slate-700 w-full max-w-sm rounded-3xl p-6 shadow-2xl">
             <h3 class="text-lg font-bold mb-4 text-white">Melyik hónapot küldöd?</h3>
-            <div id="month-options" class="space-y-2 max-h-60 overflow-y-auto mb-6">
-                </div>
+            <div id="month-options" class="space-y-2 max-h-60 overflow-y-auto mb-6"></div>
             <button onclick="closeMonthPicker()" class="w-full py-3 text-slate-400 font-bold">Mégse</button>
         </div>
     </div>
@@ -146,19 +143,16 @@
             }
         }
 
-        // --- PDF ÉS HÓNAP VÁLASZTÓ LOGIKA ---
-
         function showMonthPicker() {
             const months = [...new Set(db.refunds.map(r => r.monthKey))];
             const container = document.getElementById('month-options');
             container.innerHTML = '';
-
             if(months.length === 0) {
-                container.innerHTML = '<p class="text-slate-500 text-center py-4 text-sm italic">Még nincsenek adatok.</p>';
+                container.innerHTML = '<p class="text-slate-500 text-center py-4 text-sm italic">Még nincsenek költések.</p>';
             } else {
                 months.forEach(m => {
                     const btn = document.createElement('button');
-                    btn.className = "w-full py-4 bg-slate-800 hover:bg-slate-700 rounded-xl font-bold text-blue-400 border border-slate-700";
+                    btn.className = "w-full py-4 bg-slate-800 hover:bg-slate-700 rounded-xl font-bold text-blue-400 border border-slate-700 mb-2";
                     btn.innerText = m;
                     btn.onclick = () => { generatePDF(m); closeMonthPicker(); };
                     container.appendChild(btn);
@@ -167,36 +161,50 @@
             document.getElementById('month-modal').classList.remove('hidden');
         }
 
-        function closeMonthPicker() {
-            document.getElementById('month-modal').classList.add('hidden');
-        }
+        function closeMonthPicker() { document.getElementById('month-modal').classList.add('hidden'); }
 
         function generatePDF(selectedMonth) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             
             const filteredData = db.refunds.filter(r => r.monthKey === selectedMonth);
-            const total = filteredData.reduce((s, i) => s + i.v, 0);
+            const totalRefunded = filteredData.reduce((s, i) => s + i.v, 0);
+            const remaining = Math.max(0, db.momBase - totalRefunded);
 
-            doc.setFontSize(18);
-            doc.text(`Anyu Elszámolás - ${selectedMonth}`, 14, 20);
+            // Cím
+            doc.setFontSize(22);
+            doc.setTextColor(40, 40, 40);
+            doc.text("Költségelszámolás", 14, 20);
             
+            // Havi Összefoglaló doboz helyett szöveg
+            doc.setFontSize(12);
+            doc.setTextColor(100, 100, 100);
+            doc.text(`Időszak: ${selectedMonth}`, 14, 30);
+            
+            doc.setFontSize(11);
+            doc.setTextColor(0, 0, 0);
+            doc.text(`Anyu Keret: ${db.momBase.toLocaleString('hu-HU')} Ft`, 14, 45);
+            doc.text(`Havi költés összesen: ${totalRefunded.toLocaleString('hu-HU')} Ft`, 14, 52);
+            
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            doc.text(`Fennmaradó összeg: ${remaining.toLocaleString('hu-HU')} Ft`, 14, 62);
+
+            // Táblázat
             const tableData = filteredData.map(r => [r.dateStr + " " + r.time, r.v.toLocaleString('hu-HU') + " Ft"]);
 
             doc.autoTable({
-                startY: 30,
-                head: [['Dátum / Idő', 'Összeg']],
+                startY: 70,
+                head: [['Dátum és Idő', 'Kiadás összege']],
                 body: tableData,
-                foot: [['ÖSSZESEN:', total.toLocaleString('hu-HU') + " Ft"]],
-                theme: 'striped',
-                headStyles: { fillColor: [59, 130, 246] },
-                footStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255] }
+                theme: 'grid',
+                headStyles: { fillColor: [59, 130, 246], fontStyle: 'bold' },
+                styles: { fontSize: 10, cellPadding: 5 },
+                columnStyles: { 1: { halign: 'right' } }
             });
 
             doc.save(`elszamolas_${selectedMonth.replace(/\s/g, '')}.pdf`);
         }
-
-        // --- ALAP FUNKCIÓK ---
 
         function calculate() {
             db.salary = getNum('val-salary');
@@ -221,7 +229,6 @@
             const finalCleanMoney = totalWealth - unpaidFixedSum;
 
             document.getElementById('top-final-money').innerText = finalCleanMoney.toLocaleString('hu-HU') + ' Ft';
-            
             localStorage.setItem('fin_v8_final', JSON.stringify(db));
         }
 
@@ -252,7 +259,6 @@
                     <button onclick="remove(${ref.id}, 'refunds')" class="text-slate-700 text-xs font-bold px-3">TÖRÖL</button>
                 </div>
             `).join('');
-
             calculate();
         }
 
@@ -265,7 +271,6 @@
 
         function addExpense() { db.expenses.push({id: Date.now(), n: '', v: 0, paid: false}); render(); }
         function remove(id, type) { db[type] = db[type].filter(x => x.id !== id); calculate(); render(); }
-        
         window.onload = render;
     </script>
 </body>
