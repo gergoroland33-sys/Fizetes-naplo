@@ -127,8 +127,9 @@
         }
 
         function getNum(id) {
-            const val = document.getElementById(id).value;
-            return Number(val.replace(/\D/g, '')) || 0;
+            const el = document.getElementById(id);
+            if (!el || el.value === "") return 0;
+            return Number(el.value.replace(/\D/g, '')) || 0;
         }
 
         function quickAdd() {
@@ -158,9 +159,13 @@
             db.momBase = getNum('val-mom-base');
 
             db.expenses.forEach(ex => {
-                ex.n = document.getElementById(`ex-n-${ex.id}`).value;
-                ex.v = Number(document.getElementById(`ex-v-${ex.id}`).value.replace(/\D/g, '')) || 0;
-                ex.paid = document.getElementById(`ex-p-${ex.id}`).checked;
+                const nameEl = document.getElementById(`ex-n-${ex.id}`);
+                const valEl = document.getElementById(`ex-v-${ex.id}`);
+                const paidEl = document.getElementById(`ex-p-${ex.id}`);
+                
+                if(nameEl) ex.n = nameEl.value;
+                if(valEl) ex.v = Number(valEl.value.replace(/\D/g, '')) || 0;
+                if(paidEl) ex.paid = paidEl.checked;
             });
 
             const now = new Date();
@@ -201,7 +206,7 @@
                 <div class="flex gap-2 items-center bg-slate-900/40 p-1 rounded-xl">
                     <input type="checkbox" id="ex-p-${ex.id}" ${ex.paid ? 'checked' : ''} onchange="calculate()" class="checkbox-custom ml-1">
                     <input type="text" id="ex-n-${ex.id}" value="${ex.n}" oninput="calculate()" class="input-pro text-xs py-2 border-none bg-transparent" placeholder="Név">
-                    <input type="text" id="ex-v-${ex.id}" value="${ex.v.toLocaleString('hu-HU')} Ft" oninput="formatInput(this); calculate()" class="input-pro w-28 text-right py-2 font-bold ${ex.paid ? 'text-slate-500' : 'text-red-400'} border-none bg-transparent" placeholder="0 Ft">
+                    <input type="text" id="ex-v-${ex.id}" value="${ex.v ? ex.v.toLocaleString('hu-HU') + ' Ft' : ''}" oninput="formatInput(this); calculate()" class="input-pro w-28 text-right py-2 font-bold ${ex.paid ? 'text-slate-500' : 'text-red-400'} border-none bg-transparent" placeholder="0 Ft">
                     <button onclick="remove(${ex.id}, 'expenses')" class="text-slate-700 px-2 text-xs">✕</button>
                 </div>
             `).join('');
