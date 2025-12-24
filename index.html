@@ -41,15 +41,15 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div class="col-span-2 space-y-1">
                         <label class="text-[10px] font-bold text-slate-400 ml-1 italic">Fizetés + Meglévő</label>
-                        <input type="number" id="val-salary" oninput="calculate()" class="input-pro text-xl font-bold text-blue-400" placeholder="0">
+                        <input type="text" id="val-salary" oninput="formatInput(this); calculate()" class="input-pro text-xl font-bold text-blue-400" placeholder="0 Ft">
                     </div>
                     <div class="space-y-1">
                         <label class="text-[10px] font-bold text-slate-400 ml-1 italic">Készpénz</label>
-                        <input type="number" id="val-cash" oninput="calculate()" class="input-pro" placeholder="0">
+                        <input type="text" id="val-cash" oninput="formatInput(this); calculate()" class="input-pro" placeholder="0 Ft">
                     </div>
                     <div class="space-y-1">
                         <label class="text-[10px] font-bold text-slate-400 ml-1 italic">Célösszeg</label>
-                        <input type="number" id="val-target" oninput="calculate()" class="input-pro" placeholder="3500000">
+                        <input type="text" id="val-target" oninput="formatInput(this); calculate()" class="input-pro" placeholder="3 500 000 Ft">
                     </div>
                 </div>
             </section>
@@ -84,11 +84,11 @@
             <section class="card p-5 border-t-4 border-orange-500">
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-lg font-bold italic text-orange-400">Anyu</h2>
-                    <input type="number" id="val-mom-base" oninput="calculate()" class="w-24 bg-transparent border-b border-orange-500 text-right font-black text-orange-400 text-xl focus:outline-none" value="100800">
+                    <input type="text" id="val-mom-base" oninput="formatInput(this); calculate()" class="w-32 bg-transparent border-b border-orange-500 text-right font-black text-orange-400 text-xl focus:outline-none" value="100 800 Ft">
                 </div>
                 <div class="bg-emerald-500/5 p-4 rounded-2xl border border-emerald-500/20 mb-6">
                     <div class="flex gap-2">
-                        <input type="number" id="input-quick" class="input-pro border-emerald-500/40 text-emerald-400 text-center text-xl font-bold" placeholder="Összeg...">
+                        <input type="text" id="input-quick" oninput="formatInput(this)" class="input-pro border-emerald-500/40 text-emerald-400 text-center text-xl font-bold" placeholder="Összeg Ft...">
                         <button onclick="quickAdd()" class="bg-emerald-600 px-6 rounded-xl text-white shadow-lg"><i class="fas fa-plus"></i></button>
                     </div>
                 </div>
@@ -117,8 +117,24 @@
             refunds: []
         };
 
+        // ÚJ: Formázó függvény az inputokhoz
+        function formatInput(el) {
+            let value = el.value.replace(/\D/g, ''); // Csak számok
+            if (value === "") {
+                el.value = "";
+                return;
+            }
+            el.value = Number(value).toLocaleString('hu-HU') + ' Ft';
+        }
+
+        // ÚJ: Szám kinyerése a formázott szövegből
+        function getNum(id) {
+            const val = document.getElementById(id).value;
+            return Number(val.replace(/\D/g, '')) || 0;
+        }
+
         function quickAdd() {
-            const v = Number(document.getElementById('input-quick').value);
+            const v = getNum('input-quick');
             if(v > 0) {
                 db.refunds.unshift({id: Date.now(), v: v, d: new Date().toLocaleTimeString('hu-HU',{hour:'2-digit', minute:'2-digit'})});
                 document.getElementById('input-quick').value = '';
@@ -143,15 +159,15 @@
         }
 
         function calculate() {
-            db.salary = Number(document.getElementById('val-salary').value);
-            db.cash = Number(document.getElementById('val-cash').value);
-            db.target = Number(document.getElementById('val-target').value);
+            db.salary = getNum('val-salary');
+            db.cash = getNum('val-cash');
+            db.target = getNum('val-target');
             db.payday = Number(document.getElementById('val-payday').value);
-            db.momBase = Number(document.getElementById('val-mom-base').value);
+            db.momBase = getNum('val-mom-base');
 
             db.expenses.forEach(ex => {
                 ex.n = document.getElementById(`ex-n-${ex.id}`).value;
-                ex.v = Number(document.getElementById(`ex-v-${ex.id}`).value);
+                ex.v = Number(document.getElementById(`ex-v-${ex.id}`).value.replace(/\D/g, '')) || 0;
                 ex.paid = document.getElementById(`ex-p-${ex.id}`).checked;
             });
 
@@ -164,39 +180,36 @@
             const totalRefunds = db.refunds.reduce((s,i) => s + i.v, 0); 
             const momFinal = Math.max(0, db.momBase - totalRefunds); 
             
-            // KULCS: Csak azt vonjuk le, ami NINCS fizetve
             const unpaidFixedSum = db.expenses.reduce((s,i) => s + (i.paid ? 0 : i.v), 0) + momFinal; 
 
             const finalCleanMoney = totalWealth - unpaidFixedSum;
             const diffFromTarget = finalCleanMoney - db.target;
             
-            // MODOSITVA: Mostantól MINDIG a (Tiszta pénz - Célösszeg) / Napok alapján számol
-            // Akkor is, ha ez negatív (vagyis még nincs meg a cél).
             let daily = Math.floor(diffFromTarget / daysLeft);
 
-            document.getElementById('top-final-money').innerText = finalCleanMoney.toLocaleString() + ' Ft';
-            document.getElementById('top-daily-limit').innerText = daily.toLocaleString() + ' Ft';
+            document.getElementById('top-final-money').innerText = finalCleanMoney.toLocaleString('hu-HU') + ' Ft';
+            document.getElementById('top-daily-limit').innerText = daily.toLocaleString('hu-HU') + ' Ft';
             document.getElementById('display-days-left').innerText = daysLeft + ' NAP';
-            document.getElementById('display-fixed-sum').innerText = unpaidFixedSum.toLocaleString() + ' Ft';
-            document.getElementById('display-mom-final').innerText = "Anyu: " + momFinal.toLocaleString() + " Ft";
-            document.getElementById('display-refund-sum').innerText = "Vissza: " + totalRefunds.toLocaleString() + " Ft";
+            document.getElementById('display-fixed-sum').innerText = unpaidFixedSum.toLocaleString('hu-HU') + ' Ft';
+            document.getElementById('display-mom-final').innerText = "Anyu: " + momFinal.toLocaleString('hu-HU') + " Ft";
+            document.getElementById('display-refund-sum').innerText = "Vissza: " + totalRefunds.toLocaleString('hu-HU') + " Ft";
             
             localStorage.setItem('fin_v8_final', JSON.stringify(db));
         }
 
         function render() {
-            document.getElementById('val-salary').value = db.salary || '';
-            document.getElementById('val-cash').value = db.cash || '';
-            document.getElementById('val-target').value = db.target || '';
+            document.getElementById('val-salary').value = db.salary ? db.salary.toLocaleString('hu-HU') + ' Ft' : '';
+            document.getElementById('val-cash').value = db.cash ? db.cash.toLocaleString('hu-HU') + ' Ft' : '';
+            document.getElementById('val-target').value = db.target ? db.target.toLocaleString('hu-HU') + ' Ft' : '';
             document.getElementById('val-payday').value = db.payday || '';
-            document.getElementById('val-mom-base').value = db.momBase || '';
+            document.getElementById('val-mom-base').value = db.momBase ? db.momBase.toLocaleString('hu-HU') + ' Ft' : '';
 
             const exCont = document.getElementById('list-expenses');
             exCont.innerHTML = db.expenses.map(ex => `
                 <div class="flex gap-2 items-center bg-slate-900/40 p-1 rounded-xl">
                     <input type="checkbox" id="ex-p-${ex.id}" ${ex.paid ? 'checked' : ''} onchange="calculate()" class="checkbox-custom ml-1">
                     <input type="text" id="ex-n-${ex.id}" value="${ex.n}" oninput="calculate()" class="input-pro text-xs py-2 border-none bg-transparent" placeholder="Név">
-                    <input type="number" id="ex-v-${ex.id}" value="${ex.v}" oninput="calculate()" class="input-pro w-20 text-right py-2 font-bold ${ex.paid ? 'text-slate-500' : 'text-red-400'} border-none bg-transparent" placeholder="0">
+                    <input type="text" id="ex-v-${ex.id}" value="${ex.v.toLocaleString('hu-HU')} Ft" oninput="formatInput(this); calculate()" class="input-pro w-28 text-right py-2 font-bold ${ex.paid ? 'text-slate-500' : 'text-red-400'} border-none bg-transparent" placeholder="0 Ft">
                     <button onclick="remove(${ex.id}, 'expenses')" class="text-slate-700 px-2 text-xs">✕</button>
                 </div>
             `).join('');
@@ -205,7 +218,7 @@
             refCont.innerHTML = db.refunds.map(ref => `
                 <div class="flex justify-between items-center py-3 border-slate-800">
                     <span class="text-[10px] text-slate-500 font-mono italic">${ref.d}</span>
-                    <span class="text-emerald-400 font-black">+ ${ref.v.toLocaleString()} Ft</span>
+                    <span class="text-emerald-400 font-black">+ ${ref.v.toLocaleString('hu-HU')} Ft</span>
                     <button onclick="remove(${ref.id}, 'refunds')" class="text-slate-700 text-[10px] font-bold">TÖRÖL</button>
                 </div>
             `).join('');
