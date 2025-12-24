@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Finance Pro v8 - Final Summary</title>
+    <title>Finance Pro v8 - Instant Share</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
@@ -99,7 +99,7 @@
 
                 <div class="mt-6">
                     <button onclick="showMonthPicker()" class="w-full py-4 bg-blue-600 rounded-2xl font-bold text-white shadow-lg flex items-center justify-center gap-2">
-                        <i class="fas fa-file-pdf text-xl"></i> HAVI PDF GENERÁLÁSA
+                        <i class="fas fa-share-nodes text-xl"></i> PDF MEGOSZTÁSA
                     </button>
                 </div>
             </section>
@@ -171,7 +171,7 @@
                     const btn = document.createElement('button');
                     btn.className = "w-full py-4 bg-slate-800 rounded-xl font-bold text-blue-400 border border-slate-700 mb-2";
                     btn.innerText = m;
-                    btn.onclick = () => { generatePDF(m); closeMonthPicker(); };
+                    btn.onclick = () => { generateAndSharePDF(m); closeMonthPicker(); };
                     container.appendChild(btn);
                 });
             }
@@ -180,20 +180,40 @@
 
         function closeMonthPicker() { document.getElementById('month-modal').classList.add('hidden'); }
 
-        function generatePDF(selectedMonth) {
+        async function generateAndSharePDF(selectedMonth) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             const filteredData = db.refunds.filter(r => r.monthKey === selectedMonth);
             const totalRefunded = filteredData.reduce((s, i) => s + i.v, 0);
             const remaining = Math.max(0, db.momBase - totalRefunded);
+            
             doc.setFontSize(22); doc.text("Költségelszámolás", 14, 20);
             doc.setFontSize(12); doc.text(`Időszak: ${selectedMonth}`, 14, 30);
             doc.text(`Anyu Keret: ${db.momBase.toLocaleString('hu-HU')} Ft`, 14, 45);
             doc.text(`Havi költés összesen: ${totalRefunded.toLocaleString('hu-HU')} Ft`, 14, 52);
             doc.setFont(undefined, 'bold'); doc.text(`Fennmaradó: ${remaining.toLocaleString('hu-HU')} Ft`, 14, 62);
+            
             const tableData = filteredData.map(r => [r.dateStr + " " + r.time, r.v.toLocaleString('hu-HU') + " Ft"]);
             doc.autoTable({ startY: 70, head: [['Dátum', 'Összeg']], body: tableData, theme: 'grid' });
-            doc.save(`elszamolas_${selectedMonth.replace(/\s/g, '')}.pdf`);
+
+            const pdfOutput = doc.output('blob');
+            const fileName = `anyu_${selectedMonth.replace(/\s/g, '')}.pdf`;
+            const file = new File([pdfOutput], fileName, { type: 'application/pdf' });
+
+            // WEB SHARE API MEGHÍVÁSA
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: 'Anyu Elszámolás',
+                        text: `${selectedMonth} havi elszámolás`
+                    });
+                } catch (err) {
+                    doc.save(fileName); // Ha mégis hiba lenne vagy nem támogatja, simán letölti
+                }
+            } else {
+                doc.save(fileName); // Régebbi böngészőkön marad a sima letöltés
+            }
         }
 
         function calculate() {
