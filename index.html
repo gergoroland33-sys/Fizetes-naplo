@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Finance Pro v8.2 - iPhone Fix</title>
+    <title>Finance Pro v8.3 - Pro PDF</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
@@ -150,8 +150,6 @@
         };
 
         // --- PDF FONT BETÖLTÉS (Roboto) ---
-        // Ez szükséges az ékezetes betűkhöz (ő, ű). 
-        // Generáláskor letölti a fontot, ezért internet kell a PDF készítéshez.
         async function loadFont() {
             const response = await fetch('https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.66/fonts/Roboto/Roboto-Regular.ttf');
             const buffer = await response.arrayBuffer();
@@ -228,86 +226,108 @@
         function closeMonthPicker() { document.getElementById('month-modal').classList.add('hidden'); }
 
         async function generateAndSharePDF(selectedMonth) {
-            document.getElementById('loading-overlay').classList.remove('hidden'); // Homokóra mutatása
+            document.getElementById('loading-overlay').classList.remove('hidden'); 
             
             try {
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
 
-                // FONT BETÖLTÉS ÉS HOZZÁADÁS
+                // FONT BETÖLTÉS
                 try {
                     const fontBuffer = await loadFont();
                     const fontBase64 = arrayBufferToBase64(fontBuffer);
                     doc.addFileToVFS("Roboto-Regular.ttf", fontBase64);
                     doc.addFont("Roboto-Regular.ttf", "Roboto", "normal");
-                    doc.setFont("Roboto"); // Ez aktiválja a magyar karaktereket
+                    doc.setFont("Roboto"); 
                 } catch (e) {
-                    console.warn("Font betöltési hiba, alapértelmezett fontot használunk (ékezetek hibásak lehetnek).", e);
+                    console.warn("Font betöltési hiba.", e);
                 }
 
                 const filteredData = db.refunds.filter(r => r.monthKey === selectedMonth);
                 const totalRefunded = filteredData.reduce((s, i) => s + i.v, 0);
                 const remaining = Math.max(0, db.momBase - totalRefunded);
                 
-                // HEADER - NAGYOBB BETŰK MOBILRA
-                doc.setFontSize(32);
-                doc.setTextColor(20, 30, 50);
-                doc.text("HAVI ELSZÁMOLÁS", 105, 25, { align: 'center' }); // Középre
+                // --- PROFI PDF DESIGN ---
+                
+                // HEADER
+                doc.setFontSize(36);
+                doc.setTextColor(15, 23, 42); // Nagyon sötét kék
+                doc.text("HAVI ELSZÁMOLÁS", 105, 30, { align: 'center' }); 
                 
                 doc.setFontSize(16);
-                doc.setTextColor(100, 110, 130);
-                doc.text(`Időszak: ${selectedMonth}`, 105, 35, { align: 'center' });
+                doc.setTextColor(100, 116, 139); // Szürke
+                doc.text(`Időszak: ${selectedMonth.toUpperCase()}`, 105, 42, { align: 'center' });
                 
-                // VONAL
-                doc.setDrawColor(200, 200, 200);
-                doc.setLineWidth(0.5);
-                doc.line(15, 42, 195, 42);
-                
-                // ÖSSZESÍTŐ DOBOZOK
-                let yPos = 55;
-                const lineHeight = 12;
+                // ÖSSZESÍTŐ DOBOZ (SZÜRKE HÁTTÉR)
+                doc.setFillColor(241, 245, 249); // Halvány szürke
+                doc.rect(15, 50, 180, 50, 'F');
+                doc.setDrawColor(203, 213, 225);
+                doc.rect(15, 50, 180, 50, 'S');
 
-                doc.setFontSize(18);
-                doc.setTextColor(0, 0, 0);
-                doc.text(`Alapkeret:`, 20, yPos);
-                doc.text(`${db.momBase.toLocaleString('hu-HU')} Ft`, 190, yPos, { align: 'right' });
+                let yPos = 65;
                 
-                yPos += lineHeight;
-                doc.setTextColor(0, 150, 80);
-                doc.text(`Eddig költve:`, 20, yPos);
-                doc.text(`${totalRefunded.toLocaleString('hu-HU')} Ft`, 190, yPos, { align: 'right' });
-                
-                yPos += lineHeight + 5;
-                doc.setFontSize(22); // Kiemelt méret
-                doc.setTextColor(230, 80, 0);
-                doc.text(`Fennmaradó:`, 20, yPos);
-                doc.text(`${remaining.toLocaleString('hu-HU')} Ft`, 190, yPos, { align: 'right' });
+                // 1. SOR: ALAPKERET
+                doc.setFontSize(14);
+                doc.setTextColor(71, 85, 105);
+                doc.text("Alapkeret:", 25, yPos);
+                doc.setFontSize(16);
+                doc.setTextColor(15, 23, 42);
+                doc.setFont(undefined, 'bold');
+                doc.text(`${db.momBase.toLocaleString('hu-HU')} Ft`, 185, yPos, { align: 'right' });
+                doc.setFont(undefined, 'normal');
 
-                // TÁBLÁZAT
-                const tableData = filteredData.map(r => [r.dateStr + "\n" + r.time, r.v.toLocaleString('hu-HU') + " Ft"]);
+                // 2. SOR: EDDIG KÖLTVE (SÖTÉTKÉK)
+                yPos += 12;
+                doc.setFontSize(14);
+                doc.setTextColor(71, 85, 105);
+                doc.text("Eddig visszaadva:", 25, yPos);
+                doc.setFontSize(16);
+                doc.setTextColor(30, 58, 138); // <-- SÖTÉTKÉK (Blue-900)
+                doc.setFont(undefined, 'bold');
+                doc.text(`${totalRefunded.toLocaleString('hu-HU')} Ft`, 185, yPos, { align: 'right' });
+                doc.setFont(undefined, 'normal');
+
+                // 3. SOR: FENNMARADÓ
+                yPos += 14;
+                doc.setFontSize(18); // Nagyobb
+                doc.setTextColor(194, 65, 12); // Narancs/Vörös
+                doc.text("Fennmaradó:", 25, yPos);
+                doc.setFont(undefined, 'bold');
+                doc.text(`${remaining.toLocaleString('hu-HU')} Ft`, 185, yPos, { align: 'right' });
+
+                // TÁBLÁZAT (CSAK DÁTUM + ÖSSZEG)
+                // Idő eltávolítva a map-ből
+                const tableData = filteredData.map(r => [r.dateStr, r.v.toLocaleString('hu-HU') + " Ft"]);
                 
                 doc.autoTable({
-                    startY: yPos + 15,
+                    startY: 110, // Lejjebb kezdődik a doboz miatt
                     head: [['Dátum', 'Összeg']],
                     body: tableData,
-                    theme: 'grid', // Rácsos, jobban látható
+                    theme: 'striped',
                     styles: { 
                         font: "Roboto", 
-                        fontSize: 16, // Nagyobb betűméret a táblázatban is
-                        cellPadding: 8 // Több hely, hogy ne legyen zsúfolt
+                        fontSize: 14, // Nagyobb betűk
+                        cellPadding: 8, // Több hely (szellős)
+                        valign: 'middle'
                     },
                     headStyles: { 
-                        fillColor: [30, 41, 59], 
-                        fontSize: 16, 
-                        halign: 'center',
+                        fillColor: [30, 41, 59], // Sötét fejléc
+                        fontSize: 14, 
+                        halign: 'left', // Balra igazítva szebb
                         fontStyle: 'bold'
                     },
                     columnStyles: {
-                        0: { cellWidth: 90 },
-                        1: { cellWidth: 'auto', halign: 'right', fontStyle: 'bold' }
+                        0: { cellWidth: 80, halign: 'left' }, // Dátum balra
+                        1: { cellWidth: 'auto', halign: 'right', fontStyle: 'bold', textColor: [30, 58, 138] } // Összeg jobbra, kékkel
                     },
                     margin: { left: 15, right: 15 }
                 });
+
+                // LÁBLÉC
+                const pageCount = doc.internal.getNumberOfPages();
+                doc.setFontSize(10);
+                doc.setTextColor(150, 150, 150);
+                doc.text("Finance Pro - Automatikus elszámolás", 105, 290, { align: 'center' });
 
                 const pdfOutput = doc.output('blob');
                 const fileName = `elszamolas_${selectedMonth.replace(/\s/g, '').replace(/\./g,'')}.pdf`;
