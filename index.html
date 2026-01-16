@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Finance Pro v8.3 - Pro PDF</title>
+    <title>Finance Pro v8.4 - Aggregated PDF</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
@@ -99,7 +99,7 @@
                         <span id="display-mom-final" class="text-lg font-bold text-orange-500">0 Ft</span>
                     </div>
                     <div class="text-right flex flex-col">
-                        <span class="text-[9px] text-slate-500 uppercase font-black tracking-wider">Eddig vissza</span>
+                        <span class="text-[9px] text-slate-500 uppercase font-black tracking-wider">Eddig költve</span>
                         <span id="display-refund-sum" class="text-lg font-bold text-emerald-500">0 Ft</span>
                     </div>
                 </div>
@@ -244,87 +244,105 @@
                 }
 
                 const filteredData = db.refunds.filter(r => r.monthKey === selectedMonth);
+                
+                // --- AGGREGÁLÁS (NAPI ÖSSZESÍTÉS) ---
+                const dailyTotals = {};
+                filteredData.forEach(item => {
+                    // Dátum kulcs: "2026. 01. 15."
+                    if(!dailyTotals[item.dateStr]) {
+                        dailyTotals[item.dateStr] = 0;
+                    }
+                    dailyTotals[item.dateStr] += item.v;
+                });
+
+                // Összesített adatok konvertálása tömbbé és RENDEZÉS DÁTUM SZERINT (növekvő)
+                const aggregatedData = Object.keys(dailyTotals).sort().map(date => {
+                    return { dateStr: date, v: dailyTotals[date] };
+                });
+
+                // ÖSSZESÍTŐ SZÁMOLÁS
                 const totalRefunded = filteredData.reduce((s, i) => s + i.v, 0);
                 const remaining = Math.max(0, db.momBase - totalRefunded);
                 
                 // --- PROFI PDF DESIGN ---
                 
                 // HEADER
-                doc.setFontSize(36);
-                doc.setTextColor(15, 23, 42); // Nagyon sötét kék
+                doc.setFontSize(40); // MÉG NAGYOBB CÍM
+                doc.setTextColor(15, 23, 42); 
                 doc.text("HAVI ELSZÁMOLÁS", 105, 30, { align: 'center' }); 
                 
-                doc.setFontSize(16);
-                doc.setTextColor(100, 116, 139); // Szürke
-                doc.text(`Időszak: ${selectedMonth.toUpperCase()}`, 105, 42, { align: 'center' });
+                doc.setFontSize(18);
+                doc.setTextColor(100, 116, 139); 
+                doc.text(`Időszak: ${selectedMonth.toUpperCase()}`, 105, 45, { align: 'center' });
                 
-                // ÖSSZESÍTŐ DOBOZ (SZÜRKE HÁTTÉR)
-                doc.setFillColor(241, 245, 249); // Halvány szürke
-                doc.rect(15, 50, 180, 50, 'F');
+                // ÖSSZESÍTŐ DOBOZ
+                // Nagyobb helyet hagyunk neki
+                doc.setFillColor(248, 250, 252); // Nagyon halvány háttér
+                doc.rect(15, 55, 180, 65, 'F'); // Magasabb doboz
                 doc.setDrawColor(203, 213, 225);
-                doc.rect(15, 50, 180, 50, 'S');
+                doc.rect(15, 55, 180, 65, 'S');
 
-                let yPos = 65;
-                
+                let yPos = 75;
+                const lineHeight = 18; // Nagyobb sorköz
+
                 // 1. SOR: ALAPKERET
-                doc.setFontSize(14);
+                doc.setFontSize(16);
                 doc.setTextColor(71, 85, 105);
                 doc.text("Alapkeret:", 25, yPos);
-                doc.setFontSize(16);
+                doc.setFontSize(22); // Nagy szám
                 doc.setTextColor(15, 23, 42);
                 doc.setFont(undefined, 'bold');
                 doc.text(`${db.momBase.toLocaleString('hu-HU')} Ft`, 185, yPos, { align: 'right' });
                 doc.setFont(undefined, 'normal');
 
-                // 2. SOR: EDDIG KÖLTVE (SÖTÉTKÉK)
-                yPos += 12;
-                doc.setFontSize(14);
-                doc.setTextColor(71, 85, 105);
-                doc.text("Eddig visszaadva:", 25, yPos);
+                // 2. SOR: EDDIG KÖLTÖTT (SÖTÉTKÉK + ÁTNEVEZVE)
+                yPos += lineHeight;
                 doc.setFontSize(16);
-                doc.setTextColor(30, 58, 138); // <-- SÖTÉTKÉK (Blue-900)
+                doc.setTextColor(71, 85, 105);
+                doc.text("Eddig költött:", 25, yPos);
+                doc.setFontSize(22); 
+                doc.setTextColor(30, 58, 138); // SÖTÉTKÉK
                 doc.setFont(undefined, 'bold');
                 doc.text(`${totalRefunded.toLocaleString('hu-HU')} Ft`, 185, yPos, { align: 'right' });
                 doc.setFont(undefined, 'normal');
 
                 // 3. SOR: FENNMARADÓ
-                yPos += 14;
-                doc.setFontSize(18); // Nagyobb
-                doc.setTextColor(194, 65, 12); // Narancs/Vörös
+                yPos += lineHeight;
+                doc.setFontSize(20); // Még nagyobb label
+                doc.setTextColor(180, 83, 9); // Narancs
                 doc.text("Fennmaradó:", 25, yPos);
+                doc.setFontSize(26); // ÓRIÁSI SZÁM
                 doc.setFont(undefined, 'bold');
                 doc.text(`${remaining.toLocaleString('hu-HU')} Ft`, 185, yPos, { align: 'right' });
 
-                // TÁBLÁZAT (CSAK DÁTUM + ÖSSZEG)
-                // Idő eltávolítva a map-ből
-                const tableData = filteredData.map(r => [r.dateStr, r.v.toLocaleString('hu-HU') + " Ft"]);
+                // TÁBLÁZAT (AGGREGÁLT ADATOKKAL)
+                const tableData = aggregatedData.map(r => [r.dateStr, r.v.toLocaleString('hu-HU') + " Ft"]);
                 
                 doc.autoTable({
-                    startY: 110, // Lejjebb kezdődik a doboz miatt
-                    head: [['Dátum', 'Összeg']],
+                    startY: 135, 
+                    head: [['Dátum', 'Napi összesen']],
                     body: tableData,
                     theme: 'striped',
                     styles: { 
                         font: "Roboto", 
-                        fontSize: 14, // Nagyobb betűk
-                        cellPadding: 8, // Több hely (szellős)
+                        fontSize: 16, // Jól olvasható
+                        cellPadding: 10, // Kényelmes térköz
                         valign: 'middle'
                     },
                     headStyles: { 
-                        fillColor: [30, 41, 59], // Sötét fejléc
-                        fontSize: 14, 
-                        halign: 'left', // Balra igazítva szebb
+                        fillColor: [30, 41, 59], 
+                        fontSize: 16, 
+                        halign: 'left',
                         fontStyle: 'bold'
                     },
                     columnStyles: {
-                        0: { cellWidth: 80, halign: 'left' }, // Dátum balra
-                        1: { cellWidth: 'auto', halign: 'right', fontStyle: 'bold', textColor: [30, 58, 138] } // Összeg jobbra, kékkel
+                        0: { cellWidth: 100, halign: 'left' }, 
+                        1: { cellWidth: 'auto', halign: 'right', fontStyle: 'bold', textColor: [30, 58, 138] } 
                     },
                     margin: { left: 15, right: 15 }
                 });
 
                 // LÁBLÉC
-                const pageCount = doc.internal.getNumberOfPages();
                 doc.setFontSize(10);
                 doc.setTextColor(150, 150, 150);
                 doc.text("Finance Pro - Automatikus elszámolás", 105, 290, { align: 'center' });
