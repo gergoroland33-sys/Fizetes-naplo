@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Finance Pro v8 - Instant Share</title>
+    <title>Finance Pro v8.1 - Quick Actions</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
@@ -79,6 +79,15 @@
 
         <div id="view-mom" class="hidden space-y-6">
             <section class="card p-5 border-t-4 border-orange-500">
+                <div class="grid grid-cols-4 gap-2 mb-6">
+                    <button onclick="showMonthPicker()" class="col-span-3 py-3 bg-blue-600 rounded-xl font-bold text-white shadow-lg flex items-center justify-center gap-2 text-sm">
+                        <i class="fas fa-share-nodes text-lg"></i> PDF MEGOSZTÁSA
+                    </button>
+                    <button onclick="clearAllRefunds()" class="col-span-1 py-3 bg-red-900/50 border border-red-800 rounded-xl font-bold text-red-400 flex items-center justify-center hover:bg-red-900 transition-colors" title="Összes törlése">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-lg font-bold italic text-orange-400">Anyu Keret</h2>
                     <input type="text" id="val-mom-base" oninput="formatInput(this); calculate()" class="w-32 bg-transparent border-b border-orange-500 text-right font-black text-orange-400 text-xl focus:outline-none" placeholder="Írj ide">
@@ -103,12 +112,6 @@
                 </div>
 
                 <div id="list-mom-refunds" class="space-y-1 divide-y divide-slate-800"></div>
-
-                <div class="mt-6">
-                    <button onclick="showMonthPicker()" class="w-full py-4 bg-blue-600 rounded-2xl font-bold text-white shadow-lg flex items-center justify-center gap-2">
-                        <i class="fas fa-share-nodes text-xl"></i> PDF MEGOSZTÁSA
-                    </button>
-                </div>
             </section>
         </div>
     </main>
@@ -167,6 +170,14 @@
                 el.value = '';
                 el.focus();
                 render();
+            }
+        }
+
+        function clearAllRefunds() {
+            if(confirm("BIZTOSAN TÖRLÖD az összes eddigi visszafizetés tételt?\nEzt nem lehet visszavonni!")) {
+                db.refunds = [];
+                render();
+                calculate();
             }
         }
 
