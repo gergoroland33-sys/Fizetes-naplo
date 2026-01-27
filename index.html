@@ -9,7 +9,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* VISSZAÁLLÍTVA AZ EREDETI 'OUTFIT' BETŰTÍPUSRA */
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
         body { font-family: 'Outfit', sans-serif; background-color: #020617; color: #f1f5f9; -webkit-tap-highlight-color: transparent; }
         .card { background: #1e293b; border-radius: 1.5rem; border: 1px solid #334155; }
@@ -48,15 +47,15 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div class="col-span-2 space-y-1">
                         <label class="text-[10px] font-bold text-slate-400 ml-1 italic">Fizetés + Meglévő</label>
-                        <input type="text" inputmode="numeric" pattern="[0-9]*" id="val-salary" oninput="formatInput(this); calculate()" class="input-pro text-xl font-bold text-blue-400" placeholder="Írj ide összeget">
+                        <input type="text" inputmode="decimal" pattern="[0-9]*" enterkeyhint="done" id="val-salary" onkeydown="if(event.key==='Enter') this.blur()" oninput="formatInput(this); calculate()" class="input-pro text-xl font-bold text-blue-400" placeholder="Írj ide összeget">
                     </div>
                     <div class="space-y-1">
                         <label class="text-[10px] font-bold text-slate-400 ml-1 italic">Készpénz</label>
-                        <input type="text" inputmode="numeric" pattern="[0-9]*" id="val-cash" oninput="formatInput(this); calculate()" class="input-pro" placeholder="0 Ft">
+                        <input type="text" inputmode="decimal" pattern="[0-9]*" enterkeyhint="done" id="val-cash" onkeydown="if(event.key==='Enter') this.blur()" oninput="formatInput(this); calculate()" class="input-pro" placeholder="0 Ft">
                     </div>
                     <div class="space-y-1">
                         <label class="text-[10px] font-bold text-slate-400 ml-1 italic">Célösszeg</label>
-                        <input type="text" inputmode="numeric" pattern="[0-9]*" id="val-target" oninput="formatInput(this); calculate()" class="input-pro" placeholder="Írj ide összeget">
+                        <input type="text" inputmode="decimal" pattern="[0-9]*" enterkeyhint="done" id="val-target" onkeydown="if(event.key==='Enter') this.blur()" oninput="formatInput(this); calculate()" class="input-pro" placeholder="Írj ide összeget">
                     </div>
                 </div>
             </section>
@@ -64,7 +63,7 @@
             <section class="card p-5 bg-slate-800/50">
                 <div class="flex justify-between items-center text-sm mb-3">
                     <span class="text-slate-400 font-bold uppercase text-[10px]">Fizetés napja: <span id="display-days-left" class="text-blue-300 ml-2 font-mono">0 NAP</span></span>
-                    <input type="number" inputmode="numeric" id="val-payday" oninput="calculate()" class="w-12 bg-slate-950 text-center rounded text-white py-2 border border-slate-700" value="10">
+                    <input type="number" inputmode="decimal" enterkeyhint="done" id="val-payday" onkeydown="if(event.key==='Enter') this.blur()" oninput="calculate()" class="w-12 bg-slate-950 text-center rounded text-white py-2 border border-slate-700" value="10">
                 </div>
                 <div class="flex justify-between items-center pt-3 border-t border-slate-700">
                     <span class="text-[10px] font-black text-red-400 uppercase tracking-tighter">Még fizetendő fixek:</span>
@@ -91,7 +90,7 @@
 
                 <div class="flex justify-between items-center mb-6 px-1">
                     <h2 class="text-lg font-bold italic text-orange-400">Anyu Keret</h2>
-                    <input type="text" inputmode="numeric" pattern="[0-9]*" id="val-mom-base" oninput="formatInput(this); calculate()" class="w-32 bg-transparent border-b border-orange-500 text-right font-black text-orange-400 text-xl focus:outline-none" placeholder="Írj ide">
+                    <input type="text" inputmode="decimal" pattern="[0-9]*" enterkeyhint="done" id="val-mom-base" onkeydown="if(event.key==='Enter') this.blur()" oninput="formatInput(this); calculate()" class="w-32 bg-transparent border-b border-orange-500 text-right font-black text-orange-400 text-xl focus:outline-none" placeholder="Írj ide">
                 </div>
 
                 <div class="flex justify-between items-center bg-slate-900/80 p-4 rounded-xl border border-slate-800 mb-6 shadow-inner">
@@ -107,10 +106,10 @@
                 
                 <div class="bg-emerald-500/5 p-4 rounded-2xl border border-emerald-500/20 mb-6">
                     <label class="text-[10px] text-emerald-600 font-bold uppercase mb-2 block ml-1">Gyors hozzáadás</label>
-                    <div class="flex gap-2">
-                        <input type="text" inputmode="numeric" pattern="[0-9]*" id="input-quick" oninput="formatInput(this)" onkeydown="if(event.key === 'Enter') quickAdd()" class="input-pro border-emerald-500/40 text-emerald-400 text-center text-xl font-bold" placeholder="Összeg...">
-                        <button onclick="quickAdd()" class="bg-emerald-600 px-6 rounded-xl text-white shadow-lg active:scale-95 transition"><i class="fas fa-plus text-xl"></i></button>
-                    </div>
+                    <form class="flex gap-2" onsubmit="event.preventDefault(); quickAdd()">
+                        <input type="text" inputmode="decimal" pattern="[0-9]*" enterkeyhint="enter" id="input-quick" oninput="formatInput(this)" class="input-pro border-emerald-500/40 text-emerald-400 text-center text-xl font-bold" placeholder="Összeg...">
+                        <button type="submit" class="bg-emerald-600 px-6 rounded-xl text-white shadow-lg active:scale-95 transition"><i class="fas fa-plus text-xl"></i></button>
+                    </form>
                 </div>
 
                 <div id="list-mom-refunds" class="space-y-1 divide-y divide-slate-800"></div>
@@ -194,6 +193,8 @@
                 });
                 el.value = '';
                 el.focus();
+                // A blur elrejti a billentyűzetet sikeres bevitel után (opcionális, de kényelmesebb)
+                // el.blur(); 
                 render();
             }
         }
@@ -422,8 +423,8 @@
                         <input type="checkbox" id="ex-p-${ex.id}" ${ex.paid ? 'checked' : ''} onchange="calculate(); render()">
                         <span class="slider"></span>
                     </label>
-                    <input type="text" id="ex-n-${ex.id}" value="${ex.n}" oninput="calculate()" class="input-pro text-xs py-2 border-none bg-transparent" placeholder="Név">
-                    <input type="text" inputmode="numeric" pattern="[0-9]*" id="ex-v-${ex.id}" value="${ex.v > 0 ? ex.v.toLocaleString('hu-HU') + ' Ft' : ''}" oninput="formatInput(this); calculate()" class="input-pro w-28 text-right py-2 font-bold border-none bg-transparent ${ex.paid ? 'text-slate-500' : 'text-red-500'}" placeholder="0 Ft">
+                    <input type="text" enterkeyhint="next" id="ex-n-${ex.id}" value="${ex.n}" oninput="calculate()" class="input-pro text-xs py-2 border-none bg-transparent" placeholder="Név">
+                    <input type="text" inputmode="decimal" pattern="[0-9]*" enterkeyhint="done" id="ex-v-${ex.id}" value="${ex.v > 0 ? ex.v.toLocaleString('hu-HU') + ' Ft' : ''}" onkeydown="if(event.key==='Enter') this.blur()" oninput="formatInput(this); calculate()" class="input-pro w-28 text-right py-2 font-bold border-none bg-transparent ${ex.paid ? 'text-slate-500' : 'text-red-500'}" placeholder="0 Ft">
                     <button onclick="remove(${ex.id}, 'expenses')" class="text-slate-600 px-2">✕</button>
                 </div>
             `).join('');
