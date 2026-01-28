@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Finance Pro v9.1 - Continuous Input</title>
+    <title>Finance Pro v9.2 - Cursor Fix</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
@@ -12,7 +12,8 @@
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
         body { font-family: 'Outfit', sans-serif; background-color: #020617; color: #f1f5f9; -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
         .card { background: #1e293b; border-radius: 1.5rem; border: 1px solid #334155; }
-        .input-pro { background: #0f172a; border: 1px solid #334155; color: white; padding: 12px; border-radius: 0.75rem; width: 100%; font-size: 16px; transition: all 0.2s; }
+        /* input-pro módosítás: caret-color biztosítja hogy látszódjon a kurzor */
+        .input-pro { background: #0f172a; border: 1px solid #334155; color: white; padding: 12px; border-radius: 0.75rem; width: 100%; font-size: 16px; transition: all 0.2s; caret-color: #3b82f6; }
         .input-pro:focus { border-color: #3b82f6; outline: none; }
         .input-active { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3); background: #172554; }
         
@@ -65,15 +66,15 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div class="col-span-2 space-y-1">
                         <label class="text-[10px] font-bold text-slate-400 ml-1 italic">Fizetés + Meglévő</label>
-                        <input type="text" inputmode="none" readonly id="val-salary" onclick="openKeypad(this)" class="input-pro text-xl font-bold text-blue-400" placeholder="Írj ide összeget">
+                        <input type="text" inputmode="none" id="val-salary" onclick="openKeypad(this)" class="input-pro text-xl font-bold text-blue-400" placeholder="Írj ide összeget">
                     </div>
                     <div class="space-y-1">
                         <label class="text-[10px] font-bold text-slate-400 ml-1 italic">Készpénz</label>
-                        <input type="text" inputmode="none" readonly id="val-cash" onclick="openKeypad(this)" class="input-pro" placeholder="0 Ft">
+                        <input type="text" inputmode="none" id="val-cash" onclick="openKeypad(this)" class="input-pro" placeholder="0 Ft">
                     </div>
                     <div class="space-y-1">
                         <label class="text-[10px] font-bold text-slate-400 ml-1 italic">Célösszeg</label>
-                        <input type="text" inputmode="none" readonly id="val-target" onclick="openKeypad(this)" class="input-pro" placeholder="Írj ide összeget">
+                        <input type="text" inputmode="none" id="val-target" onclick="openKeypad(this)" class="input-pro" placeholder="Írj ide összeget">
                     </div>
                 </div>
             </section>
@@ -81,7 +82,7 @@
             <section class="card p-5 bg-slate-800/50">
                 <div class="flex justify-between items-center text-sm mb-3">
                     <span class="text-slate-400 font-bold uppercase text-[10px]">Fizetés napja: <span id="display-days-left" class="text-blue-300 ml-2 font-mono">0 NAP</span></span>
-                    <input type="text" inputmode="none" readonly id="val-payday" onclick="openKeypad(this)" class="w-12 bg-slate-950 text-center rounded text-white py-2 border border-slate-700" value="10">
+                    <input type="text" inputmode="none" id="val-payday" onclick="openKeypad(this)" class="w-12 bg-slate-950 text-center rounded text-white py-2 border border-slate-700 focus:border-blue-500 focus:outline-none caret-blue-500" value="10">
                 </div>
                 <div class="flex justify-between items-center pt-3 border-t border-slate-700">
                     <span class="text-[10px] font-black text-red-400 uppercase tracking-tighter">Még fizetendő fixek:</span>
@@ -108,7 +109,7 @@
 
                 <div class="flex justify-between items-center mb-6 px-1">
                     <h2 class="text-lg font-bold italic text-orange-400">Anyu Keret</h2>
-                    <input type="text" inputmode="none" readonly id="val-mom-base" onclick="openKeypad(this)" class="w-32 bg-transparent border-b border-orange-500 text-right font-black text-orange-400 text-xl focus:outline-none" placeholder="Írj ide">
+                    <input type="text" inputmode="none" id="val-mom-base" onclick="openKeypad(this)" class="w-32 bg-transparent border-b border-orange-500 text-right font-black text-orange-400 text-xl focus:outline-none caret-orange-500" placeholder="Írj ide">
                 </div>
 
                 <div class="flex justify-between items-center bg-slate-900/80 p-4 rounded-xl border border-slate-800 mb-6 shadow-inner">
@@ -125,7 +126,7 @@
                 <div class="bg-emerald-500/5 p-4 rounded-2xl border border-emerald-500/20 mb-6">
                     <label class="text-[10px] text-emerald-600 font-bold uppercase mb-2 block ml-1">Gyors hozzáadás</label>
                     <div class="flex gap-2">
-                        <input type="text" inputmode="none" readonly id="input-quick" onclick="openKeypad(this)" class="input-pro border-emerald-500/40 text-emerald-400 text-center text-xl font-bold" placeholder="Összeg...">
+                        <input type="text" inputmode="none" id="input-quick" onclick="openKeypad(this)" class="input-pro border-emerald-500/40 text-emerald-400 text-center text-xl font-bold caret-emerald-500" placeholder="Összeg...">
                         <button onclick="quickAdd()" class="bg-emerald-600 px-6 rounded-xl text-white shadow-lg active:scale-95 transition"><i class="fas fa-plus text-xl"></i></button>
                     </div>
                 </div>
@@ -206,9 +207,8 @@
             activeInput = el;
             activeInput.classList.add('input-active');
             
-            if(!activeInput.hasAttribute('readonly')) {
-                activeInput.setAttribute('readonly', true);
-            }
+            // JAVÍTVA: Nem állítjuk be a readonly-t, hogy a kurzor megmaradjon.
+            // Az HTML-ben lévő inputmode="none" intézi, hogy ne jöjjön fel a mobil billentyűzet.
 
             keypadEl.classList.add('visible');
             navEl.style.transform = 'translateY(100%)';
@@ -236,6 +236,7 @@
         function keyPadInput(val) {
             if(!activeInput) return;
             
+            // Ha véletlenül duplán íródna a natív billentyűzet miatt (desktop), tisztítjuk
             let currentVal = activeInput.value.replace(/\D/g, '');
             
             if(activeInput.id === 'val-payday') {
@@ -272,18 +273,14 @@
                 calculate();
             } 
             else if (action === 'enter') {
-                // MÓDOSÍTÁS: Ha a "Gyors hozzáadás" input aktív, az Enter nem zárja be a billentyűzetet
                 if(activeInput.id === 'input-quick') {
                     quickAdd();
-                    // Nincs closeKeypad() hívás!
-                    // A felhasználó tovább gépelhet
                 } else {
-                    // Minden más esetben bezárja
                     closeKeypad();
                 }
             }
             else if (action === 'abc') {
-                activeInput.removeAttribute('readonly');
+                // JAVÍTVA: Nincs readonly kapcsolgatas, csak fókusz
                 activeInput.focus();
                 closeKeypad();
             }
@@ -549,7 +546,7 @@
                         <span class="slider"></span>
                     </label>
                     <input type="text" enterkeyhint="next" id="ex-n-${ex.id}" value="${ex.n}" oninput="calculate()" class="input-pro text-xs py-2 border-none bg-transparent" placeholder="Név">
-                    <input type="text" inputmode="none" readonly onclick="openKeypad(this)" id="ex-v-${ex.id}" value="${ex.v > 0 ? ex.v.toLocaleString('hu-HU') + ' Ft' : ''}" class="input-pro w-28 text-right py-2 font-bold border-none bg-transparent ${ex.paid ? 'text-slate-500' : 'text-red-500'}" placeholder="0 Ft">
+                    <input type="text" inputmode="none" onclick="openKeypad(this)" id="ex-v-${ex.id}" value="${ex.v > 0 ? ex.v.toLocaleString('hu-HU') + ' Ft' : ''}" class="input-pro w-28 text-right py-2 font-bold border-none bg-transparent ${ex.paid ? 'text-slate-500' : 'text-red-500'} caret-red-500" placeholder="0 Ft">
                     <button onclick="remove(${ex.id}, 'expenses')" class="text-slate-600 px-2">✕</button>
                 </div>
             `).join('');
