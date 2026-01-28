@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Finance Pro v9.0 - Custom Keypad</title>
+    <title>Finance Pro v9.1 - Continuous Input</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
@@ -12,7 +12,6 @@
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
         body { font-family: 'Outfit', sans-serif; background-color: #020617; color: #f1f5f9; -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
         .card { background: #1e293b; border-radius: 1.5rem; border: 1px solid #334155; }
-        /* input-pro módosítva: caret-color transparent, hogy ne villogjon a kurzor a custom billentyűzetnél */
         .input-pro { background: #0f172a; border: 1px solid #334155; color: white; padding: 12px; border-radius: 0.75rem; width: 100%; font-size: 16px; transition: all 0.2s; }
         .input-pro:focus { border-color: #3b82f6; outline: none; }
         .input-active { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3); background: #172554; }
@@ -45,7 +44,9 @@
         .key-action { font-size: 1.2rem; }
     </style>
 </head>
-<body class="pb-80"> <header class="sticky-header p-5">
+<body class="pb-80">
+
+    <header class="sticky-header p-5">
         <div class="max-w-md mx-auto flex justify-between items-end">
             <div>
                 <p class="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Tiszta pénzed</p>
@@ -136,7 +137,7 @@
 
     <div id="custom-keypad" class="fixed bottom-0 left-0 right-0 bg-slate-950 border-t border-slate-800 p-3 pb-8 z-[200]">
         <div class="max-w-md mx-auto">
-            <div class="flex justify-center mb-3">
+            <div class="flex justify-center mb-3" onclick="closeKeypad()">
                 <div class="w-12 h-1 bg-slate-800 rounded-full"></div>
             </div>
             
@@ -158,7 +159,7 @@
 
                 <button onclick="keyPadInput('0')" class="key-btn">0</button>
                 <button onclick="keyPadInput('000')" class="col-span-2 key-btn">000</button>
-                </div>
+            </div>
         </div>
     </div>
 
@@ -200,23 +201,18 @@
         const navEl = document.getElementById('bottom-nav');
 
         function openKeypad(el) {
-            // Előző inputról levesszük az aktív stílust
             if(activeInput) activeInput.classList.remove('input-active');
             
             activeInput = el;
             activeInput.classList.add('input-active');
             
-            // Ha a felhasználó ABC módot kért (kivettük a readonly-t), tegyük vissza
-            // hogy legközelebb megint a keypad jöjjön elő, hacsak nem nyom ABC-t újra
             if(!activeInput.hasAttribute('readonly')) {
                 activeInput.setAttribute('readonly', true);
             }
 
             keypadEl.classList.add('visible');
-            // Navigáció elrejtése, hogy ne legyen útban
             navEl.style.transform = 'translateY(100%)';
             
-            // Görgetés az elemhez, hogy látszódjon a billentyűzet felett
             setTimeout(() => {
                 el.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }, 100);
@@ -232,7 +228,6 @@
         }
 
         function handleOutsideClick(e) {
-            // Ha nem inputra kattintott, zárja be a keypadot
             if (activeInput && e.target !== activeInput && !activeInput.contains(e.target)) {
                 closeKeypad();
             }
@@ -243,19 +238,16 @@
             
             let currentVal = activeInput.value.replace(/\D/g, '');
             
-            // Speciális eset: Fizetés napja (nem Ft, és max 31 lehet)
             if(activeInput.id === 'val-payday') {
                 let newVal = currentVal + val;
-                if(Number(newVal) > 31) newVal = "31"; // Max limit
-                if(newVal.length > 2) newVal = newVal.slice(0, 2); // Max 2 digit
-                activeInput.value = Number(newVal); // Nincs Ft formázás
+                if(Number(newVal) > 31) newVal = "31"; 
+                if(newVal.length > 2) newVal = newVal.slice(0, 2); 
+                activeInput.value = Number(newVal); 
             } else {
-                // Normál pénz mezők
                 activeInput.value = currentVal + val;
                 formatInput(activeInput);
             }
             
-            // Trigger events
             activeInput.dispatchEvent(new Event('input'));
             calculate();
         }
@@ -280,17 +272,20 @@
                 calculate();
             } 
             else if (action === 'enter') {
-                // Ha a gyors hozzáadás inputon vagyunk és Entert nyomunk, adjuk hozzá
+                // MÓDOSÍTÁS: Ha a "Gyors hozzáadás" input aktív, az Enter nem zárja be a billentyűzetet
                 if(activeInput.id === 'input-quick') {
                     quickAdd();
+                    // Nincs closeKeypad() hívás!
+                    // A felhasználó tovább gépelhet
+                } else {
+                    // Minden más esetben bezárja
+                    closeKeypad();
                 }
-                closeKeypad();
             }
             else if (action === 'abc') {
-                // Váltás natív billentyűzetre
                 activeInput.removeAttribute('readonly');
-                activeInput.focus(); // Ez előhozza a natív billentyűzetet
-                closeKeypad(); // Custom eltűnik
+                activeInput.focus();
+                closeKeypad();
             }
         }
 
@@ -335,9 +330,7 @@
                     monthKey: d.getFullYear() + ". " + d.toLocaleString('hu-HU', { month: 'long' }),
                     time: d.toLocaleTimeString('hu-HU',{hour:'2-digit', minute:'2-digit'})
                 });
-                el.value = '';
-                // A keypad maradhat nyitva a gyorsabb bevitelhez, vagy zárhatjuk:
-                // closeKeypad(); 
+                el.value = ''; // Mező törlése
                 render();
             }
         }
@@ -549,8 +542,6 @@
             document.getElementById('val-payday').value = db.payday;
 
             const exCont = document.getElementById('list-expenses');
-            // Frissítés: Expense Amount mező is readonly és keypados lett
-            // A "Név" mező maradt normál szöveges, hogy a gyári billentyűzettel lehessen írni
             exCont.innerHTML = db.expenses.map(ex => `
                 <div class="flex gap-2 items-center bg-slate-900/40 p-2 rounded-xl border border-slate-800">
                     <label class="switch ml-1">
