@@ -3,32 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Finance Pro v8.7 - iOS Fix</title>
+    <title>Finance Pro v9.0 - Custom Keypad</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
-        body { font-family: 'Outfit', sans-serif; background-color: #020617; color: #f1f5f9; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Outfit', sans-serif; background-color: #020617; color: #f1f5f9; -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
         .card { background: #1e293b; border-radius: 1.5rem; border: 1px solid #334155; }
-        .input-pro { background: #0f172a; border: 1px solid #334155; color: white; padding: 12px; border-radius: 0.75rem; width: 100%; font-size: 16px; }
+        /* input-pro módosítva: caret-color transparent, hogy ne villogjon a kurzor a custom billentyűzetnél */
+        .input-pro { background: #0f172a; border: 1px solid #334155; color: white; padding: 12px; border-radius: 0.75rem; width: 100%; font-size: 16px; transition: all 0.2s; }
+        .input-pro:focus { border-color: #3b82f6; outline: none; }
+        .input-active { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3); background: #172554; }
+        
         .nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 12px; color: #64748b; }
         .nav-btn.active { color: #3b82f6; border-bottom: 3px solid #3b82f6; }
-        .sticky-header { position: sticky; top: 0; z-index: 100; background: rgba(2, 6, 23, 0.95); backdrop-filter: blur(12px); border-bottom: 1px solid #1e293b; }
-        #month-modal { background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); }
-
+        .sticky-header { position: sticky; top: 0; z-index: 40; background: rgba(2, 6, 23, 0.95); backdrop-filter: blur(12px); border-bottom: 1px solid #1e293b; }
+        
         .switch { position: relative; display: inline-block; min-width: 44px; height: 24px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .4s; border-radius: 34px; }
         .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
         input:checked + .slider { background-color: #10b981; }
         input:checked + .slider:before { transform: translateX(20px); }
+
+        /* Custom Keypad CSS */
+        #custom-keypad {
+            transition: transform 0.25s cubic-bezier(0.19, 1, 0.22, 1);
+            transform: translateY(100%);
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
+        }
+        #custom-keypad.visible { transform: translateY(0); }
+        .key-btn {
+            background: #1e293b; border: 1px solid #334155; color: white;
+            font-size: 1.5rem; font-weight: 600; border-radius: 0.75rem;
+            display: flex; align-items: center; justify-content: center;
+            height: 56px; width: 100%; transition: all 0.1s; user-select: none;
+        }
+        .key-btn:active { transform: scale(0.95); background: #334155; }
+        .key-action { font-size: 1.2rem; }
     </style>
 </head>
-<body class="pb-28">
-
-    <header class="sticky-header p-5">
+<body class="pb-80"> <header class="sticky-header p-5">
         <div class="max-w-md mx-auto flex justify-between items-end">
             <div>
                 <p class="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Tiszta pénzed</p>
@@ -41,21 +58,21 @@
         </div>
     </header>
 
-    <main class="p-4 max-w-md mx-auto space-y-6">
+    <main id="main-content" class="p-4 max-w-md mx-auto space-y-6" onclick="handleOutsideClick(event)">
         <div id="view-main" class="space-y-6">
             <section class="card p-5">
                 <div class="grid grid-cols-2 gap-4">
                     <div class="col-span-2 space-y-1">
                         <label class="text-[10px] font-bold text-slate-400 ml-1 italic">Fizetés + Meglévő</label>
-                        <input type="tel" id="val-salary" oninput="formatInput(this); calculate()" class="input-pro text-xl font-bold text-blue-400" placeholder="Írj ide összeget">
+                        <input type="text" inputmode="none" readonly id="val-salary" onclick="openKeypad(this)" class="input-pro text-xl font-bold text-blue-400" placeholder="Írj ide összeget">
                     </div>
                     <div class="space-y-1">
                         <label class="text-[10px] font-bold text-slate-400 ml-1 italic">Készpénz</label>
-                        <input type="tel" id="val-cash" oninput="formatInput(this); calculate()" class="input-pro" placeholder="0 Ft">
+                        <input type="text" inputmode="none" readonly id="val-cash" onclick="openKeypad(this)" class="input-pro" placeholder="0 Ft">
                     </div>
                     <div class="space-y-1">
                         <label class="text-[10px] font-bold text-slate-400 ml-1 italic">Célösszeg</label>
-                        <input type="tel" id="val-target" oninput="formatInput(this); calculate()" class="input-pro" placeholder="Írj ide összeget">
+                        <input type="text" inputmode="none" readonly id="val-target" onclick="openKeypad(this)" class="input-pro" placeholder="Írj ide összeget">
                     </div>
                 </div>
             </section>
@@ -63,7 +80,7 @@
             <section class="card p-5 bg-slate-800/50">
                 <div class="flex justify-between items-center text-sm mb-3">
                     <span class="text-slate-400 font-bold uppercase text-[10px]">Fizetés napja: <span id="display-days-left" class="text-blue-300 ml-2 font-mono">0 NAP</span></span>
-                    <input type="number" inputmode="numeric" id="val-payday" oninput="calculate()" class="w-12 bg-slate-950 text-center rounded text-white py-2 border border-slate-700" value="10">
+                    <input type="text" inputmode="none" readonly id="val-payday" onclick="openKeypad(this)" class="w-12 bg-slate-950 text-center rounded text-white py-2 border border-slate-700" value="10">
                 </div>
                 <div class="flex justify-between items-center pt-3 border-t border-slate-700">
                     <span class="text-[10px] font-black text-red-400 uppercase tracking-tighter">Még fizetendő fixek:</span>
@@ -90,7 +107,7 @@
 
                 <div class="flex justify-between items-center mb-6 px-1">
                     <h2 class="text-lg font-bold italic text-orange-400">Anyu Keret</h2>
-                    <input type="tel" id="val-mom-base" oninput="formatInput(this); calculate()" class="w-32 bg-transparent border-b border-orange-500 text-right font-black text-orange-400 text-xl focus:outline-none" placeholder="Írj ide">
+                    <input type="text" inputmode="none" readonly id="val-mom-base" onclick="openKeypad(this)" class="w-32 bg-transparent border-b border-orange-500 text-right font-black text-orange-400 text-xl focus:outline-none" placeholder="Írj ide">
                 </div>
 
                 <div class="flex justify-between items-center bg-slate-900/80 p-4 rounded-xl border border-slate-800 mb-6 shadow-inner">
@@ -107,7 +124,7 @@
                 <div class="bg-emerald-500/5 p-4 rounded-2xl border border-emerald-500/20 mb-6">
                     <label class="text-[10px] text-emerald-600 font-bold uppercase mb-2 block ml-1">Gyors hozzáadás</label>
                     <div class="flex gap-2">
-                        <input type="tel" id="input-quick" oninput="formatInput(this)" onchange="quickAdd()" onkeydown="if(event.key === 'Enter') quickAdd()" class="input-pro border-emerald-500/40 text-emerald-400 text-center text-xl font-bold" placeholder="Összeg...">
+                        <input type="text" inputmode="none" readonly id="input-quick" onclick="openKeypad(this)" class="input-pro border-emerald-500/40 text-emerald-400 text-center text-xl font-bold" placeholder="Összeg...">
                         <button onclick="quickAdd()" class="bg-emerald-600 px-6 rounded-xl text-white shadow-lg active:scale-95 transition"><i class="fas fa-plus text-xl"></i></button>
                     </div>
                 </div>
@@ -116,6 +133,43 @@
             </section>
         </div>
     </main>
+
+    <div id="custom-keypad" class="fixed bottom-0 left-0 right-0 bg-slate-950 border-t border-slate-800 p-3 pb-8 z-[200]">
+        <div class="max-w-md mx-auto">
+            <div class="flex justify-center mb-3">
+                <div class="w-12 h-1 bg-slate-800 rounded-full"></div>
+            </div>
+            
+            <div class="grid grid-cols-4 gap-2">
+                <button onclick="keyPadInput('7')" class="key-btn">7</button>
+                <button onclick="keyPadInput('8')" class="key-btn">8</button>
+                <button onclick="keyPadInput('9')" class="key-btn">9</button>
+                <button onclick="keyPadAction('backspace')" class="key-btn bg-red-900/20 text-red-400 border-red-900/50"><i class="fas fa-backspace key-action"></i></button>
+
+                <button onclick="keyPadInput('4')" class="key-btn">4</button>
+                <button onclick="keyPadInput('5')" class="key-btn">5</button>
+                <button onclick="keyPadInput('6')" class="key-btn">6</button>
+                <button onclick="keyPadAction('abc')" class="key-btn bg-blue-900/20 text-blue-400 border-blue-900/50 text-xs font-black">ABC</button>
+
+                <button onclick="keyPadInput('1')" class="key-btn">1</button>
+                <button onclick="keyPadInput('2')" class="key-btn">2</button>
+                <button onclick="keyPadInput('3')" class="key-btn">3</button>
+                <button onclick="keyPadAction('enter')" class="row-span-2 key-btn bg-emerald-600 border-emerald-500 !h-full"><i class="fas fa-check key-action"></i></button>
+
+                <button onclick="keyPadInput('0')" class="key-btn">0</button>
+                <button onclick="keyPadInput('000')" class="col-span-2 key-btn">000</button>
+                </div>
+        </div>
+    </div>
+
+    <nav id="bottom-nav" class="fixed bottom-0 left-0 right-0 h-20 bg-slate-950 border-t border-slate-800 flex z-[100] transition-transform duration-300">
+        <button onclick="setTab('main')" id="nav-main" class="nav-btn active">
+            <i class="fas fa-wallet text-xl mb-1"></i><span class="text-[9px] font-bold uppercase">Pénzügyek</span>
+        </button>
+        <button onclick="setTab('mom')" id="nav-mom" class="nav-btn">
+            <i class="fas fa-hand-holding-heart text-xl mb-1"></i><span class="text-[9px] font-bold uppercase">Anyu</span>
+        </button>
+    </nav>
 
     <button onclick="window.location.reload()" class="fixed bottom-24 right-5 z-40 bg-slate-800 text-white w-12 h-12 rounded-full border border-slate-600 shadow-xl flex items-center justify-center hover:bg-slate-700 transition-all active:scale-95">
         <i class="fas fa-sync-alt"></i>
@@ -134,20 +188,113 @@
         </div>
     </div>
 
-    <nav class="fixed bottom-0 left-0 right-0 h-20 bg-slate-950 border-t border-slate-800 flex z-50">
-        <button onclick="setTab('main')" id="nav-main" class="nav-btn active">
-            <i class="fas fa-wallet text-xl mb-1"></i><span class="text-[9px] font-bold uppercase">Pénzügyek</span>
-        </button>
-        <button onclick="setTab('mom')" id="nav-mom" class="nav-btn">
-            <i class="fas fa-hand-holding-heart text-xl mb-1"></i><span class="text-[9px] font-bold uppercase">Anyu</span>
-        </button>
-    </nav>
-
     <script>
         let db = JSON.parse(localStorage.getItem('fin_v8_final')) || {
             salary: 0, cash: 0, target: 0, payday: 10, momBase: 0,
             expenses: [], refunds: []
         };
+
+        // --- Custom Keypad Logic ---
+        let activeInput = null;
+        const keypadEl = document.getElementById('custom-keypad');
+        const navEl = document.getElementById('bottom-nav');
+
+        function openKeypad(el) {
+            // Előző inputról levesszük az aktív stílust
+            if(activeInput) activeInput.classList.remove('input-active');
+            
+            activeInput = el;
+            activeInput.classList.add('input-active');
+            
+            // Ha a felhasználó ABC módot kért (kivettük a readonly-t), tegyük vissza
+            // hogy legközelebb megint a keypad jöjjön elő, hacsak nem nyom ABC-t újra
+            if(!activeInput.hasAttribute('readonly')) {
+                activeInput.setAttribute('readonly', true);
+            }
+
+            keypadEl.classList.add('visible');
+            // Navigáció elrejtése, hogy ne legyen útban
+            navEl.style.transform = 'translateY(100%)';
+            
+            // Görgetés az elemhez, hogy látszódjon a billentyűzet felett
+            setTimeout(() => {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+        }
+
+        function closeKeypad() {
+            keypadEl.classList.remove('visible');
+            navEl.style.transform = 'translateY(0)';
+            if(activeInput) {
+                activeInput.classList.remove('input-active');
+                activeInput = null;
+            }
+        }
+
+        function handleOutsideClick(e) {
+            // Ha nem inputra kattintott, zárja be a keypadot
+            if (activeInput && e.target !== activeInput && !activeInput.contains(e.target)) {
+                closeKeypad();
+            }
+        }
+
+        function keyPadInput(val) {
+            if(!activeInput) return;
+            
+            let currentVal = activeInput.value.replace(/\D/g, '');
+            
+            // Speciális eset: Fizetés napja (nem Ft, és max 31 lehet)
+            if(activeInput.id === 'val-payday') {
+                let newVal = currentVal + val;
+                if(Number(newVal) > 31) newVal = "31"; // Max limit
+                if(newVal.length > 2) newVal = newVal.slice(0, 2); // Max 2 digit
+                activeInput.value = Number(newVal); // Nincs Ft formázás
+            } else {
+                // Normál pénz mezők
+                activeInput.value = currentVal + val;
+                formatInput(activeInput);
+            }
+            
+            // Trigger events
+            activeInput.dispatchEvent(new Event('input'));
+            calculate();
+        }
+
+        function keyPadAction(action) {
+            if(!activeInput) return;
+
+            if(action === 'backspace') {
+                let currentVal = activeInput.value.replace(/\D/g, '');
+                if(currentVal.length > 0) {
+                    currentVal = currentVal.slice(0, -1);
+                }
+                
+                if(activeInput.id === 'val-payday') {
+                    activeInput.value = currentVal;
+                } else {
+                    activeInput.value = currentVal;
+                    formatInput(activeInput);
+                }
+                
+                activeInput.dispatchEvent(new Event('input'));
+                calculate();
+            } 
+            else if (action === 'enter') {
+                // Ha a gyors hozzáadás inputon vagyunk és Entert nyomunk, adjuk hozzá
+                if(activeInput.id === 'input-quick') {
+                    quickAdd();
+                }
+                closeKeypad();
+            }
+            else if (action === 'abc') {
+                // Váltás natív billentyűzetre
+                activeInput.removeAttribute('readonly');
+                activeInput.focus(); // Ez előhozza a natív billentyűzetet
+                closeKeypad(); // Custom eltűnik
+            }
+        }
+
+        // --- Eredeti funkciók ---
 
         async function loadFont() {
             const response = await fetch('https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.66/fonts/Roboto/Roboto-Regular.ttf');
@@ -166,12 +313,9 @@
         }
 
         function formatInput(el) {
-            let cursor = el.selectionStart;
             let val = el.value.replace(/\D/g, '');
             if (val === "") { el.value = ""; return; }
             el.value = Number(val).toLocaleString('hu-HU') + ' Ft';
-            // Megpróbáljuk visszaállítani a kurzort, de mobilon néha a végére ugrik, ami nem baj számoknál
-            try { el.setSelectionRange(cursor, cursor); } catch(e){}
         }
 
         function getNum(id) {
@@ -182,7 +326,6 @@
         function quickAdd() {
             const el = document.getElementById('input-quick');
             const v = getNum('input-quick');
-            // Csak akkor adjuk hozzá, ha van érték (elkerüli a véletlen blur eseményeket)
             if(v > 0) {
                 const d = new Date();
                 db.refunds.unshift({
@@ -193,7 +336,8 @@
                     time: d.toLocaleTimeString('hu-HU',{hour:'2-digit', minute:'2-digit'})
                 });
                 el.value = '';
-                // el.focus(); // iOS-en ezt kivettük, hogy a billentyűzet eltűnjön sikeres bevitel után (tisztább érzés)
+                // A keypad maradhat nyitva a gyorsabb bevitelhez, vagy zárhatjuk:
+                // closeKeypad(); 
                 render();
             }
         }
@@ -405,6 +549,8 @@
             document.getElementById('val-payday').value = db.payday;
 
             const exCont = document.getElementById('list-expenses');
+            // Frissítés: Expense Amount mező is readonly és keypados lett
+            // A "Név" mező maradt normál szöveges, hogy a gyári billentyűzettel lehessen írni
             exCont.innerHTML = db.expenses.map(ex => `
                 <div class="flex gap-2 items-center bg-slate-900/40 p-2 rounded-xl border border-slate-800">
                     <label class="switch ml-1">
@@ -412,7 +558,7 @@
                         <span class="slider"></span>
                     </label>
                     <input type="text" enterkeyhint="next" id="ex-n-${ex.id}" value="${ex.n}" oninput="calculate()" class="input-pro text-xs py-2 border-none bg-transparent" placeholder="Név">
-                    <input type="tel" id="ex-v-${ex.id}" value="${ex.v > 0 ? ex.v.toLocaleString('hu-HU') + ' Ft' : ''}" oninput="formatInput(this); calculate()" class="input-pro w-28 text-right py-2 font-bold border-none bg-transparent ${ex.paid ? 'text-slate-500' : 'text-red-500'}" placeholder="0 Ft">
+                    <input type="text" inputmode="none" readonly onclick="openKeypad(this)" id="ex-v-${ex.id}" value="${ex.v > 0 ? ex.v.toLocaleString('hu-HU') + ' Ft' : ''}" class="input-pro w-28 text-right py-2 font-bold border-none bg-transparent ${ex.paid ? 'text-slate-500' : 'text-red-500'}" placeholder="0 Ft">
                     <button onclick="remove(${ex.id}, 'expenses')" class="text-slate-600 px-2">✕</button>
                 </div>
             `).join('');
