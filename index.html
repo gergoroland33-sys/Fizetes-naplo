@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Finance Pro v9.2 - Cursor Fix</title>
+    <title>Finance Pro v9.3 - Fixed Logic</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
@@ -207,15 +207,10 @@
             activeInput = el;
             activeInput.classList.add('input-active');
             
-            // JAVÍTVA: Nem állítjuk be a readonly-t, hogy a kurzor megmaradjon.
-            // Az HTML-ben lévő inputmode="none" intézi, hogy ne jöjjön fel a mobil billentyűzet.
-
             keypadEl.classList.add('visible');
             navEl.style.transform = 'translateY(100%)';
             
-            setTimeout(() => {
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }, 100);
+            // JAVÍTVA: Kivettem a scrollIntoView hívást, hogy ne ugráljon a kép, amikor megnyitod.
         }
 
         function closeKeypad() {
@@ -236,7 +231,6 @@
         function keyPadInput(val) {
             if(!activeInput) return;
             
-            // Ha véletlenül duplán íródna a natív billentyűzet miatt (desktop), tisztítjuk
             let currentVal = activeInput.value.replace(/\D/g, '');
             
             if(activeInput.id === 'val-payday') {
@@ -257,6 +251,7 @@
             if(!activeInput) return;
 
             if(action === 'backspace') {
+                // JAVÍTVA: A törlés logikája, hogy azonnal formázzon és ne ugráljon
                 let currentVal = activeInput.value.replace(/\D/g, '');
                 if(currentVal.length > 0) {
                     currentVal = currentVal.slice(0, -1);
@@ -267,6 +262,10 @@
                 } else {
                     activeInput.value = currentVal;
                     formatInput(activeInput);
+                    // Kurzor végére állítása a furcsa törlés érzet ellen
+                    try {
+                        activeInput.setSelectionRange(activeInput.value.length, activeInput.value.length);
+                    } catch(e) {} 
                 }
                 
                 activeInput.dispatchEvent(new Event('input'));
@@ -280,7 +279,6 @@
                 }
             }
             else if (action === 'abc') {
-                // JAVÍTVA: Nincs readonly kapcsolgatas, csak fókusz
                 activeInput.focus();
                 closeKeypad();
             }
@@ -377,8 +375,16 @@
                     console.warn("Font betöltési hiba.", e);
                 }
 
+                // Csak az adott hónap tételeit listázzuk a táblázatban
                 const filteredData = db.refunds.filter(r => r.monthKey === selectedMonth);
                 
+                // JAVÍTÁS: A teljes visszafizetés (Eddig költött) és a Fennmaradó számítása
+                // Mostantól nem csak az adott hónapot nézi, hanem az ÖSSZES eddigi befizetést.
+                // Így hónapváltáskor nem nullázódik le a "tartozás".
+                const totalGlobalRefunds = db.refunds.reduce((s, i) => s + i.v, 0);
+                const remaining = Math.max(0, db.momBase - totalGlobalRefunds);
+                
+                // Napi összesítések (csak a választott hónapra)
                 const dailyTotals = {};
                 filteredData.forEach(item => {
                     if(!dailyTotals[item.dateStr]) {
@@ -391,9 +397,6 @@
                     return { dateStr: date, v: dailyTotals[date] };
                 });
 
-                const totalRefunded = filteredData.reduce((s, i) => s + i.v, 0);
-                const remaining = Math.max(0, db.momBase - totalRefunded);
-                
                 doc.setFontSize(36);
                 doc.setTextColor(30, 58, 138);
                 doc.text("HAVI ELSZÁMOLÁS", 105, 30, { align: 'center' }); 
@@ -422,11 +425,12 @@
                 yPos += lineHeight;
                 doc.setFontSize(16);
                 doc.setTextColor(71, 85, 105);
-                doc.text("Eddig költött:", 25, yPos);
+                doc.text("Összes eddigi költés:", 25, yPos);
                 doc.setFontSize(18); 
                 doc.setTextColor(37, 99, 235);
                 doc.setFont(undefined, 'bold');
-                doc.text(`${totalRefunded.toLocaleString('hu-HU')} Ft`, 185, yPos, { align: 'right' });
+                // Itt mostantól a globális összeget írjuk ki
+                doc.text(`${totalGlobalRefunds.toLocaleString('hu-HU')} Ft`, 185, yPos, { align: 'right' });
                 doc.setFont(undefined, 'normal');
 
                 yPos += lineHeight;
