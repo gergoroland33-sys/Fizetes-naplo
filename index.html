@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Finance Pro v9.4 - Fixed UX</title>
+    <title>Finance Pro v9.5 - Data Restored</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
@@ -192,7 +192,8 @@
     </div>
 
     <script>
-        let db = JSON.parse(localStorage.getItem('fin_v9_fixed')) || {
+        // VISSZAÍRTAM A KULCSOT: fin_v8_final (így visszatérnek az adatok)
+        let db = JSON.parse(localStorage.getItem('fin_v8_final')) || {
             salary: 0, cash: 0, target: 0, payday: 10, momBase: 0,
             expenses: [], refunds: []
         };
@@ -212,10 +213,8 @@
             navEl.style.transform = 'translateY(100%)';
             
             // JAVÍTVA: Késleltetett és intelligens görgetés.
-            // Csak akkor görget, ha a billentyűzet kitakarná a mezőt, és csak 300ms múlva (amikor a panel felért),
-            // hogy ne ugráljon a kép feleslegesen. Középre igazítja (block: center).
             setTimeout(() => {
-                if (activeInput === el) { // Csak ha még mindig ez az aktív
+                if (activeInput === el) { 
                     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
             }, 300);
@@ -231,7 +230,6 @@
         }
 
         function handleOutsideClick(e) {
-            // Bezárja a keypadot, ha mellé kattintunk, de nem az inputra vagy magára a keypadra
             if (activeInput && e.target !== activeInput && !activeInput.contains(e.target) && !keypadEl.contains(e.target)) {
                 closeKeypad();
             }
@@ -240,7 +238,7 @@
         function keyPadInput(val) {
             if(!activeInput) return;
             
-            let currentVal = activeInput.value.replace(/\D/g, ''); // Csak számok
+            let currentVal = activeInput.value.replace(/\D/g, ''); 
             
             if(activeInput.id === 'val-payday') {
                 let newVal = currentVal + val;
@@ -252,7 +250,6 @@
                 formatInput(activeInput);
             }
             
-            // Dispatch event hogy a change listenerek (ha vannak) érzékeljék
             activeInput.dispatchEvent(new Event('input'));
             calculate();
         }
@@ -262,10 +259,6 @@
 
             if(action === 'backspace') {
                 // JAVÍTVA: Stabil törlési logika.
-                // 1. Kiszedjük a tiszta számot.
-                // 2. Levágjuk az utolsó karaktert.
-                // 3. Azonnal újraformázzuk a " Ft"-al, így a felhasználó nem érzékeli a ugrálást.
-                
                 let currentVal = activeInput.value.replace(/\D/g, '');
                 
                 if(activeInput.id === 'val-payday') {
@@ -275,7 +268,6 @@
                     if(currentVal.length > 0) {
                         currentVal = currentVal.slice(0, -1);
                         activeInput.value = currentVal;
-                        // Ha van még szám, formázza (Ft hozzáadása), ha nincs, marad üres
                         if(currentVal.length > 0) formatInput(activeInput);
                         else activeInput.value = "";
                     }
@@ -292,7 +284,6 @@
                 }
             }
             else if (action === 'abc') {
-                // Átváltás natív billentyűzetre (ha kell szöveg beírásnál)
                 activeInput.focus();
                 closeKeypad();
             }
@@ -319,7 +310,6 @@
         function formatInput(el) {
             let val = el.value.replace(/\D/g, '');
             if (val === "") { el.value = ""; return; }
-            // Mindig hozzáfűzi a " Ft"-ot, így fixnek érződik
             el.value = Number(val).toLocaleString('hu-HU') + ' Ft';
         }
 
@@ -540,7 +530,8 @@
             document.getElementById('display-mom-final').innerText = momFinal.toLocaleString('hu-HU') + " Ft";
             document.getElementById('display-refund-sum').innerText = totalRefunds.toLocaleString('hu-HU') + " Ft";
             
-            localStorage.setItem('fin_v9_fixed', JSON.stringify(db));
+            // VISSZAÍRTAM A KULCSOT a mentésnél is
+            localStorage.setItem('fin_v8_final', JSON.stringify(db));
         }
 
         function render() {
