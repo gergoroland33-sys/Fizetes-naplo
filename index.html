@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Finance Pro v9.3 - Fixed Logic</title>
+    <title>Finance Pro v9.4 - Fixed UX</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
@@ -12,7 +12,8 @@
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap');
         body { font-family: 'Outfit', sans-serif; background-color: #020617; color: #f1f5f9; -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
         .card { background: #1e293b; border-radius: 1.5rem; border: 1px solid #334155; }
-        /* input-pro módosítás: caret-color biztosítja hogy látszódjon a kurzor */
+        
+        /* input-pro: caret-color kék, hogy látszódjon hol jársz */
         .input-pro { background: #0f172a; border: 1px solid #334155; color: white; padding: 12px; border-radius: 0.75rem; width: 100%; font-size: 16px; transition: all 0.2s; caret-color: #3b82f6; }
         .input-pro:focus { border-color: #3b82f6; outline: none; }
         .input-active { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3); background: #172554; }
@@ -30,7 +31,7 @@
 
         /* Custom Keypad CSS */
         #custom-keypad {
-            transition: transform 0.25s cubic-bezier(0.19, 1, 0.22, 1);
+            transition: transform 0.3s cubic-bezier(0.19, 1, 0.22, 1);
             transform: translateY(100%);
             box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
         }
@@ -191,12 +192,12 @@
     </div>
 
     <script>
-        let db = JSON.parse(localStorage.getItem('fin_v8_final')) || {
+        let db = JSON.parse(localStorage.getItem('fin_v9_fixed')) || {
             salary: 0, cash: 0, target: 0, payday: 10, momBase: 0,
             expenses: [], refunds: []
         };
 
-        // --- Custom Keypad Logic ---
+        // --- Custom Keypad Logic & UX Fixes ---
         let activeInput = null;
         const keypadEl = document.getElementById('custom-keypad');
         const navEl = document.getElementById('bottom-nav');
@@ -210,7 +211,14 @@
             keypadEl.classList.add('visible');
             navEl.style.transform = 'translateY(100%)';
             
-            // JAVÍTVA: Kivettem a scrollIntoView hívást, hogy ne ugráljon a kép, amikor megnyitod.
+            // JAVÍTVA: Késleltetett és intelligens görgetés.
+            // Csak akkor görget, ha a billentyűzet kitakarná a mezőt, és csak 300ms múlva (amikor a panel felért),
+            // hogy ne ugráljon a kép feleslegesen. Középre igazítja (block: center).
+            setTimeout(() => {
+                if (activeInput === el) { // Csak ha még mindig ez az aktív
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 300);
         }
 
         function closeKeypad() {
@@ -223,7 +231,8 @@
         }
 
         function handleOutsideClick(e) {
-            if (activeInput && e.target !== activeInput && !activeInput.contains(e.target)) {
+            // Bezárja a keypadot, ha mellé kattintunk, de nem az inputra vagy magára a keypadra
+            if (activeInput && e.target !== activeInput && !activeInput.contains(e.target) && !keypadEl.contains(e.target)) {
                 closeKeypad();
             }
         }
@@ -231,7 +240,7 @@
         function keyPadInput(val) {
             if(!activeInput) return;
             
-            let currentVal = activeInput.value.replace(/\D/g, '');
+            let currentVal = activeInput.value.replace(/\D/g, ''); // Csak számok
             
             if(activeInput.id === 'val-payday') {
                 let newVal = currentVal + val;
@@ -243,6 +252,7 @@
                 formatInput(activeInput);
             }
             
+            // Dispatch event hogy a change listenerek (ha vannak) érzékeljék
             activeInput.dispatchEvent(new Event('input'));
             calculate();
         }
@@ -251,21 +261,24 @@
             if(!activeInput) return;
 
             if(action === 'backspace') {
-                // JAVÍTVA: A törlés logikája, hogy azonnal formázzon és ne ugráljon
+                // JAVÍTVA: Stabil törlési logika.
+                // 1. Kiszedjük a tiszta számot.
+                // 2. Levágjuk az utolsó karaktert.
+                // 3. Azonnal újraformázzuk a " Ft"-al, így a felhasználó nem érzékeli a ugrálást.
+                
                 let currentVal = activeInput.value.replace(/\D/g, '');
-                if(currentVal.length > 0) {
-                    currentVal = currentVal.slice(0, -1);
-                }
                 
                 if(activeInput.id === 'val-payday') {
+                    if(currentVal.length > 0) currentVal = currentVal.slice(0, -1);
                     activeInput.value = currentVal;
                 } else {
-                    activeInput.value = currentVal;
-                    formatInput(activeInput);
-                    // Kurzor végére állítása a furcsa törlés érzet ellen
-                    try {
-                        activeInput.setSelectionRange(activeInput.value.length, activeInput.value.length);
-                    } catch(e) {} 
+                    if(currentVal.length > 0) {
+                        currentVal = currentVal.slice(0, -1);
+                        activeInput.value = currentVal;
+                        // Ha van még szám, formázza (Ft hozzáadása), ha nincs, marad üres
+                        if(currentVal.length > 0) formatInput(activeInput);
+                        else activeInput.value = "";
+                    }
                 }
                 
                 activeInput.dispatchEvent(new Event('input'));
@@ -279,12 +292,13 @@
                 }
             }
             else if (action === 'abc') {
+                // Átváltás natív billentyűzetre (ha kell szöveg beírásnál)
                 activeInput.focus();
                 closeKeypad();
             }
         }
 
-        // --- Eredeti funkciók ---
+        // --- Eredeti logika változatlanul ---
 
         async function loadFont() {
             const response = await fetch('https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.66/fonts/Roboto/Roboto-Regular.ttf');
@@ -305,6 +319,7 @@
         function formatInput(el) {
             let val = el.value.replace(/\D/g, '');
             if (val === "") { el.value = ""; return; }
+            // Mindig hozzáfűzi a " Ft"-ot, így fixnek érződik
             el.value = Number(val).toLocaleString('hu-HU') + ' Ft';
         }
 
@@ -325,7 +340,7 @@
                     monthKey: d.getFullYear() + ". " + d.toLocaleString('hu-HU', { month: 'long' }),
                     time: d.toLocaleTimeString('hu-HU',{hour:'2-digit', minute:'2-digit'})
                 });
-                el.value = ''; // Mező törlése
+                el.value = ''; 
                 render();
             }
         }
@@ -375,16 +390,10 @@
                     console.warn("Font betöltési hiba.", e);
                 }
 
-                // Csak az adott hónap tételeit listázzuk a táblázatban
                 const filteredData = db.refunds.filter(r => r.monthKey === selectedMonth);
-                
-                // JAVÍTÁS: A teljes visszafizetés (Eddig költött) és a Fennmaradó számítása
-                // Mostantól nem csak az adott hónapot nézi, hanem az ÖSSZES eddigi befizetést.
-                // Így hónapváltáskor nem nullázódik le a "tartozás".
                 const totalGlobalRefunds = db.refunds.reduce((s, i) => s + i.v, 0);
                 const remaining = Math.max(0, db.momBase - totalGlobalRefunds);
                 
-                // Napi összesítések (csak a választott hónapra)
                 const dailyTotals = {};
                 filteredData.forEach(item => {
                     if(!dailyTotals[item.dateStr]) {
@@ -429,7 +438,6 @@
                 doc.setFontSize(18); 
                 doc.setTextColor(37, 99, 235);
                 doc.setFont(undefined, 'bold');
-                // Itt mostantól a globális összeget írjuk ki
                 doc.text(`${totalGlobalRefunds.toLocaleString('hu-HU')} Ft`, 185, yPos, { align: 'right' });
                 doc.setFont(undefined, 'normal');
 
@@ -532,7 +540,7 @@
             document.getElementById('display-mom-final').innerText = momFinal.toLocaleString('hu-HU') + " Ft";
             document.getElementById('display-refund-sum').innerText = totalRefunds.toLocaleString('hu-HU') + " Ft";
             
-            localStorage.setItem('fin_v8_final', JSON.stringify(db));
+            localStorage.setItem('fin_v9_fixed', JSON.stringify(db));
         }
 
         function render() {
