@@ -50,10 +50,10 @@
         .key-action { font-size: 1.2rem; }
     </style>
 </head>
-<body class="pb-32"> 
+<body class="pb-32 relative"> 
 
-    <!-- FIX FRISSÍTÉS GOMB A JOBB FELSŐ SAROKBAN -->
-    <button id="refreshBtn" onclick="animateRefresh()" class="btn-refresh fixed top-5 right-5 z-[100] bg-slate-800 border border-slate-600 text-blue-400 w-10 h-10 rounded-full shadow-[0_4px_15px_rgba(0,0,0,0.3)] flex items-center justify-center hover:bg-slate-700">
+    <!-- FIX FRISSÍTÉS GOMB A JOBB FELSŐ SAROKBAN (Most már elgörgethető) -->
+    <button id="refreshBtn" onclick="animateRefresh()" class="btn-refresh absolute top-5 right-5 z-[100] bg-slate-800 border border-slate-600 text-blue-400 w-10 h-10 rounded-full shadow-[0_4px_15px_rgba(0,0,0,0.3)] flex items-center justify-center hover:bg-slate-700">
         <i class="fas fa-sync-alt text-sm"></i>
     </button>
 
@@ -129,12 +129,11 @@
                     </button>
                 </div>
 
-                <!-- MAGYARÁZATOS, SZÉP KÁRTYÁK ANYU ADATAIHOZ -->
+                <!-- SZÉP KÁRTYÁK ANYU ADATAIHOZ (Alkalmazásban leírás nélkül) -->
                 <div class="space-y-4 mb-6">
                     <!-- Alap Keret Card -->
                     <div class="bg-slate-800/40 p-4 rounded-2xl border border-slate-700 shadow-sm relative overflow-hidden">
                         <div class="absolute top-0 left-0 w-1.5 h-full bg-slate-400"></div>
-                        <p class="text-[11px] text-slate-400 mb-3 italic">Magyarázat: Ez a teljes havi keretösszeg, amiből a hónapban gazdálkodhatsz.</p>
                         <div class="flex justify-between items-center pl-2">
                             <h2 class="text-sm font-bold uppercase tracking-wider text-white">Alap Keret</h2>
                             <input type="text" inputmode="none" id="val-mom-base" onclick="openKeypad(this)" class="w-32 bg-transparent border-b-2 border-slate-500/50 text-right font-black text-white text-xl focus:outline-none transition" placeholder="0 Ft">
@@ -144,7 +143,6 @@
                     <!-- Levonás Card -->
                     <div class="bg-red-950/20 p-4 rounded-2xl border border-red-900/30 shadow-sm relative overflow-hidden">
                         <div class="absolute top-0 left-0 w-1.5 h-full bg-red-500"></div>
-                        <p class="text-[11px] text-slate-400 mb-3 italic">Magyarázat: Ezt az összeget a hónap során már elköltötted vagy levonásra került.</p>
                         <div class="flex justify-between items-center pl-2">
                             <span class="text-xs font-bold uppercase tracking-wider text-red-400">Eddig levonva</span>
                             <span id="display-refund-sum" class="text-xl font-black text-red-400">0 Ft</span>
@@ -154,7 +152,6 @@
                     <!-- Fennmaradó Card -->
                     <div class="bg-emerald-950/20 p-4 rounded-2xl border border-emerald-900/30 shadow-sm relative overflow-hidden">
                         <div class="absolute top-0 left-0 w-1.5 h-full bg-emerald-400"></div>
-                        <p class="text-[11px] text-slate-400 mb-3 italic">Magyarázat: Ezt az összeget még nyugodtan elköltheted a hónap hátralévő részében.</p>
                         <div class="flex justify-between items-center pl-2">
                             <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">Még költhető</span>
                             <span id="display-mom-final" class="text-2xl font-black text-emerald-400">0 Ft</span>
@@ -230,13 +227,13 @@
     </div>
 
     <script>
-        // ADATBÁZIS BETÖLTÉSE (Garantáltan a fin_v8_final kulcsról)
+        // ADATBÁZIS BETÖLTÉSE
         let db = JSON.parse(localStorage.getItem('fin_v8_final')) || {
             salary: 0, cash: 0, target: 0, payday: 10, momBase: 0,
             expenses: [], refunds: []
         };
 
-        // --- CUSTOM KEYPAD LOGIC VISSZAÁLLÍTVA ---
+        // --- CUSTOM KEYPAD LOGIC ---
         let activeInput = null;
         const keypadEl = document.getElementById('custom-keypad');
         const navEl = document.getElementById('bottom-nav');
@@ -407,7 +404,7 @@
 
         function closeMonthPicker() { document.getElementById('month-modal').classList.add('hidden'); }
 
-        // --- IDŐS-BARÁT, LETISZTULT PDF GENERÁLÁS (NINCS TÁBLÁZAT) ---
+        // --- IDŐS-BARÁT, LETISZTULT PDF GENERÁLÁS MAGYARÁZATTAL ---
         async function generateAndSharePDF(selectedMonth) {
             document.getElementById('loading-overlay').classList.remove('hidden'); 
             
