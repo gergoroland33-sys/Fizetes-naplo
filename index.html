@@ -504,7 +504,10 @@
                 doc.text("Finance Pro - Automatikus elszámolás", 105, 290, { align: 'center' });
 
                 const pdfOutput = doc.output('blob');
-                const fileName = `elszamolas_${selectedMonth.replace(/\s/g, '').replace(/\./g,'')}.pdf`;
+                const now = new Date();
+                const pad = (n) => String(n).padStart(2, '0');
+                const stamp = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+                const fileName = `elszamolas_${selectedMonth.replace(/\s/g, '').replace(/\./g,'')}_${stamp}.pdf`;
                 const file = new File([pdfOutput], fileName, { type: 'application/pdf' });
 
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
