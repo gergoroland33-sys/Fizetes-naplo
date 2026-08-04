@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="hu">
 <head>
@@ -576,7 +577,8 @@
                     doc.setFont('Roboto');
                 } catch (e) { console.warn('PDF font fallback:', e); }
 
-                const items = db.refunds.filter(r => r.monthKey === selectedMonth).sort((a, b) => a.id - b.id);
+                // Legújabb nap és legújabb tétel legfelül az exportban.
+                const items = db.refunds.filter(r => r.monthKey === selectedMonth).sort((a, b) => b.id - a.id);
                 const monthlyDeposits = items.filter(r => r.type === 'deposit').reduce((sum, r) => sum + r.v, 0);
                 const monthlyExpenses = items.filter(r => r.type !== 'deposit').reduce((sum, r) => sum + r.v, 0);
                 const allExpenses = db.refunds.filter(r => r.type !== 'deposit').reduce((sum, r) => sum + r.v, 0);
@@ -615,12 +617,17 @@
                     const dayDeposit = dayItems.filter(r => r.type === 'deposit').reduce((sum, r) => sum + r.v, 0);
                     const dayExpense = dayItems.filter(r => r.type !== 'deposit').reduce((sum, r) => sum + r.v, 0);
                     rows.push([{ content: `${date}  |  Napi befizetés: ${money(dayDeposit)}  |  Napi költés: ${money(dayExpense)}`, colSpan: 4, styles: { fillColor: [226, 232, 240], textColor: [30, 41, 59], fontStyle: 'bold' } }]);
-                    dayItems.forEach(item => rows.push([
-                        item.time || '—',
-                        item.type === 'deposit' ? 'Befizetés' : 'Költés',
-                        item.type === 'deposit' ? money(item.v) : '—',
-                        item.type === 'deposit' ? '—' : money(item.v)
-                    ]));
+                    dayItems.forEach(item => {
+                        const isDeposit = item.type === 'deposit';
+                        const row = [
+                            item.time || '—',
+                            isDeposit ? 'Befizetés' : 'Költés',
+                            isDeposit ? money(item.v) : '—',
+                            isDeposit ? '—' : money(item.v)
+                        ];
+                        // A befizetés teljes sora kap jelölőszínt, hogy egy pillantással felismerhető legyen.
+                        rows.push(isDeposit ? row.map(content => ({ content, styles: { fillColor: [219, 234, 254], textColor: [30, 64, 175], fontStyle: 'bold' } })) : row);
+                    });
                 });
                 if (!rows.length) rows.push([{ content: 'Ebben a hónapban nincs rögzített pénzmozgás.', colSpan: 4, styles: { halign: 'center', textColor: [100, 116, 139] } }]);
 
@@ -628,8 +635,9 @@
                     startY: 109,
                     head: [['IDŐ', 'TÍPUS', 'BEFIZETÉS', 'KÖLTÉS']], body: rows, theme: 'grid',
                     margin: { left: 15, right: 15, bottom: 16 },
-                    styles: { font: 'Roboto', fontSize: 8.5, cellPadding: 3, textColor: [30, 41, 59], lineColor: [226, 232, 240], lineWidth: 0.15 },
+                    styles: { font: 'Roboto', fontSize: 9, cellPadding: 3.3, textColor: [30, 41, 59], lineColor: [226, 232, 240], lineWidth: 0.15 },
                     headStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold', halign: 'center' },
+                    alternateRowStyles: { fillColor: [248, 250, 252] },
                     columnStyles: { 0: { cellWidth: 30 }, 1: { cellWidth: 46 }, 2: { cellWidth: 52, halign: 'right', textColor: [37, 99, 235] }, 3: { cellWidth: 52, halign: 'right', textColor: [220, 38, 38] } },
                     didDrawPage: data => { doc.setFontSize(7.5); doc.setTextColor(100, 116, 139); doc.text('Finance Pro · Részletes, időbélyeges havi kimutatás', 15, 291); doc.text(`Oldal ${data.pageNumber}`, 195, 291, { align: 'right' }); }
                 });
