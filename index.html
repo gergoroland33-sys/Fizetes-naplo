@@ -136,7 +136,17 @@
                         <div class="absolute top-0 left-0 w-1.5 h-full bg-slate-400"></div>
                         <div class="flex justify-between items-center pl-2">
                             <h2 class="text-sm font-bold uppercase tracking-wider text-white">Alap Keret</h2>
-                            <input type="text" inputmode="none" id="val-mom-base" onclick="openKeypad(this)" class="w-32 bg-transparent border-b-2 border-slate-500/50 text-right font-black text-white text-xl focus:outline-none transition" placeholder="0 Ft">
+                            <span id="display-mom-base" class="text-right font-black text-white text-xl">0 Ft</span>
+                        </div>
+                    </div>
+
+                    <!-- Befizetés: az alapkeretet növeli, a tranzakció a PDF-ben is megjelenik -->
+                    <div class="bg-blue-950/20 p-4 rounded-2xl border border-blue-900/30 shadow-sm relative overflow-hidden">
+                        <div class="absolute top-0 left-0 w-1.5 h-full bg-blue-400"></div>
+                        <label class="text-[10px] text-blue-400 font-bold uppercase mb-3 block pl-2 tracking-wider"><i class="fas fa-plus-circle mr-1"></i> Befizetés az alapkerethez</label>
+                        <div class="flex gap-3 pl-2">
+                            <input type="text" inputmode="none" id="input-mom-deposit" onclick="openKeypad(this)" class="input-pro !py-3 bg-slate-900 border-blue-500/30 text-white text-center text-lg font-bold" placeholder="0 Ft">
+                            <button onclick="addMomDeposit()" class="bg-blue-500 w-16 rounded-xl text-white shadow-lg shadow-blue-500/20 active:scale-95 transition flex items-center justify-center" aria-label="Befizetés rögzítése"><i class="fas fa-plus text-xl"></i></button>
                         </div>
                     </div>
 
@@ -160,7 +170,7 @@
                 </div>
                 
                 <div class="bg-gradient-to-r from-emerald-900/30 to-slate-900 p-5 rounded-2xl border border-emerald-500/20 mb-6 shadow-inner">
-                    <label class="text-[10px] text-emerald-500 font-bold uppercase mb-3 block ml-1 tracking-wider"><i class="fas fa-bolt mr-1"></i> Gyors hozzáadás</label>
+                    <label class="text-[10px] text-emerald-500 font-bold uppercase mb-3 block ml-1 tracking-wider"><i class="fas fa-bolt mr-1"></i> Költés rögzítése</label>
                     <div class="flex gap-3">
                         <input type="text" inputmode="none" id="input-quick" onclick="openKeypad(this)" class="input-pro bg-slate-900 border-emerald-500/30 text-white text-center text-xl font-bold" placeholder="0 Ft">
                         <button onclick="quickAdd()" class="bg-emerald-500 w-16 rounded-xl text-white shadow-lg shadow-emerald-500/20 active:scale-95 transition flex items-center justify-center"><i class="fas fa-plus text-xl"></i></button>
@@ -318,6 +328,8 @@
             else if (action === 'enter') {
                 if(activeInput.id === 'input-quick') {
                     quickAdd();
+                } else if(activeInput.id === 'input-mom-deposit') {
+                    addMomDeposit();
                 } else {
                     closeKeypad();
                 }
@@ -366,9 +378,10 @@
                 db.refunds.unshift({
                     id: Date.now(), 
                     v: v, 
+                    type: 'expense',
                     dateStr: d.toLocaleDateString('hu-HU'),
                     monthKey: d.getFullYear() + ". " + d.toLocaleString('hu-HU', { month: 'long' }),
-                    time: d.toLocaleTimeString('hu-HU',{hour:'2-digit', minute:'2-digit'})
+                    time: d.toLocaleTimeString('hu-HU',{hour:'2-digit', minute:'2-digit', second:'2-digit'})
                 });
                 el.value = ''; 
                 calculate();
@@ -376,8 +389,30 @@
             }
         }
 
+        function addMomDeposit() {
+            const el = document.getElementById('input-mom-deposit');
+            const value = getNum('input-mom-deposit');
+            if(value <= 0) return;
+
+            const d = new Date();
+            db.momBase += value;
+            db.refunds.unshift({
+                id: Date.now(),
+                v: value,
+                type: 'deposit',
+                dateStr: d.toLocaleDateString('hu-HU'),
+                monthKey: d.getFullYear() + ". " + d.toLocaleString('hu-HU', { month: 'long' }),
+                time: d.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+            });
+            el.value = '';
+            calculate();
+            render();
+        }
+
         function clearAllRefunds() {
             if(confirm("BIZTOSAN TÖRLÖD az összes eddigi visszafizetés tételt?\nEzt nem lehet visszavonni!")) {
+                const depositsToUndo = db.refunds.filter(item => item.type === 'deposit').reduce((sum, item) => sum + item.v, 0);
+                db.momBase = Math.max(0, db.momBase - depositsToUndo);
                 db.refunds = [];
                 calculate();
                 render();
@@ -405,7 +440,7 @@
         function closeMonthPicker() { document.getElementById('month-modal').classList.add('hidden'); }
 
         // --- IDŐS-BARÁT, LETISZTULT PDF GENERÁLÁS MAGYARÁZATTAL ---
-        async function generateAndSharePDF(selectedMonth) {
+        async function generateAndSharePDFLegacy(selectedMonth) {
             document.getElementById('loading-overlay').classList.remove('hidden'); 
             
             try {
@@ -527,12 +562,94 @@
             }
         }
 
+        // Részletes, mobilon is jól olvasható havi export. A régi exportkód biztonsági tartalékként megmarad.
+        async function generateAndSharePDF(selectedMonth) {
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+                try {
+                    const fontBuffer = await loadFont();
+                    doc.addFileToVFS('Roboto-Regular.ttf', arrayBufferToBase64(fontBuffer));
+                    doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+                    doc.addFont('Roboto-Regular.ttf', 'Roboto', 'bold');
+                    doc.setFont('Roboto');
+                } catch (e) { console.warn('PDF font fallback:', e); }
+
+                const items = db.refunds.filter(r => r.monthKey === selectedMonth).sort((a, b) => a.id - b.id);
+                const monthlyDeposits = items.filter(r => r.type === 'deposit').reduce((sum, r) => sum + r.v, 0);
+                const monthlyExpenses = items.filter(r => r.type !== 'deposit').reduce((sum, r) => sum + r.v, 0);
+                const allExpenses = db.refunds.filter(r => r.type !== 'deposit').reduce((sum, r) => sum + r.v, 0);
+                const available = Math.max(0, db.momBase - allExpenses);
+                const money = value => `${value.toLocaleString('hu-HU')} Ft`;
+                const now = new Date();
+                const printedAt = `${now.toLocaleDateString('hu-HU')} ${now.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}`;
+
+                doc.setFillColor(15, 23, 42); doc.rect(0, 0, 210, 43, 'F');
+                doc.setTextColor(255, 255, 255); doc.setFontSize(22); doc.text('HAVI ELSZÁMOLÁS', 15, 20);
+                doc.setTextColor(148, 163, 184); doc.setFontSize(10.5); doc.text(selectedMonth.toUpperCase(), 15, 29);
+                doc.text(`Készült: ${printedAt}`, 195, 29, { align: 'right' });
+
+                const cards = [
+                    { x: 15, color: [59, 130, 246], label: 'ALAPKERET', value: money(db.momBase) },
+                    { x: 75, color: [37, 99, 235], label: 'HAVI BEFIZETÉS', value: `+ ${money(monthlyDeposits)}` },
+                    { x: 135, color: [220, 38, 38], label: 'HAVI KÖLTÉS', value: `− ${money(monthlyExpenses)}` }
+                ];
+                cards.forEach(card => {
+                    doc.setFillColor(248, 250, 252); doc.roundedRect(card.x, 51, 55, 28, 3, 3, 'F');
+                    doc.setFillColor(...card.color); doc.roundedRect(card.x, 51, 55, 3, 3, 3, 'F');
+                    doc.setTextColor(100, 116, 139); doc.setFontSize(7.5); doc.text(card.label, card.x + 4, 61);
+                    doc.setTextColor(15, 23, 42); doc.setFontSize(10.5); doc.text(card.value, card.x + 4, 71);
+                });
+                doc.setFillColor(236, 253, 245); doc.roundedRect(15, 85, 180, 16, 3, 3, 'F');
+                doc.setTextColor(5, 150, 105); doc.setFontSize(8); doc.text('JELENLEG MÉG ELKÖLTHETŐ', 20, 92);
+                doc.setFontSize(15); doc.text(money(available), 190, 95, { align: 'right' });
+
+                const groups = items.reduce((result, item) => {
+                    const date = item.dateStr || 'Dátum nélkül';
+                    (result[date] ||= []).push(item);
+                    return result;
+                }, {});
+                const rows = [];
+                Object.entries(groups).forEach(([date, dayItems]) => {
+                    const dayDeposit = dayItems.filter(r => r.type === 'deposit').reduce((sum, r) => sum + r.v, 0);
+                    const dayExpense = dayItems.filter(r => r.type !== 'deposit').reduce((sum, r) => sum + r.v, 0);
+                    rows.push([{ content: `${date}  |  Napi befizetés: ${money(dayDeposit)}  |  Napi költés: ${money(dayExpense)}`, colSpan: 4, styles: { fillColor: [226, 232, 240], textColor: [30, 41, 59], fontStyle: 'bold' } }]);
+                    dayItems.forEach(item => rows.push([
+                        item.time || '—',
+                        item.type === 'deposit' ? 'Befizetés' : 'Költés',
+                        item.type === 'deposit' ? money(item.v) : '—',
+                        item.type === 'deposit' ? '—' : money(item.v)
+                    ]));
+                });
+                if (!rows.length) rows.push([{ content: 'Ebben a hónapban nincs rögzített pénzmozgás.', colSpan: 4, styles: { halign: 'center', textColor: [100, 116, 139] } }]);
+
+                doc.autoTable({
+                    startY: 109,
+                    head: [['IDŐ', 'TÍPUS', 'BEFIZETÉS', 'KÖLTÉS']], body: rows, theme: 'grid',
+                    margin: { left: 15, right: 15, bottom: 16 },
+                    styles: { font: 'Roboto', fontSize: 8.5, cellPadding: 3, textColor: [30, 41, 59], lineColor: [226, 232, 240], lineWidth: 0.15 },
+                    headStyles: { fillColor: [30, 41, 59], textColor: 255, fontStyle: 'bold', halign: 'center' },
+                    columnStyles: { 0: { cellWidth: 30 }, 1: { cellWidth: 46 }, 2: { cellWidth: 52, halign: 'right', textColor: [37, 99, 235] }, 3: { cellWidth: 52, halign: 'right', textColor: [220, 38, 38] } },
+                    didDrawPage: data => { doc.setFontSize(7.5); doc.setTextColor(100, 116, 139); doc.text('Finance Pro · Részletes, időbélyeges havi kimutatás', 15, 291); doc.text(`Oldal ${data.pageNumber}`, 195, 291, { align: 'right' }); }
+                });
+
+                const pdfOutput = doc.output('blob');
+                const stamp = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
+                const fileName = `elszamolas_${selectedMonth.replace(/\s/g, '').replace(/\./g, '')}_${stamp}.pdf`;
+                const file = new File([pdfOutput], fileName, { type: 'application/pdf' });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file], title: 'Finance elszámolás', text: `${selectedMonth} havi elszámolás` });
+                else doc.save(fileName);
+            } catch (err) { alert('Hiba a PDF generálásakor: ' + err.message); }
+            finally { document.getElementById('loading-overlay').classList.add('hidden'); }
+        }
+
         function calculate() {
             db.salary = getNum('val-salary');
             db.cash = getNum('val-cash');
             db.target = getNum('val-target');
             db.payday = Number(document.getElementById('val-payday').value) || 10;
-            db.momBase = getNum('val-mom-base');
+            // Az alapkeret csak a Befizetés mezővel növelhető, ezért itt nem írjuk felül.
 
             db.expenses.forEach(ex => {
                 const nameEl = document.getElementById(`ex-n-${ex.id}`);
@@ -549,7 +666,8 @@
             const daysLeft = Math.max(1, Math.ceil((targetDate - now) / (1000 * 60 * 60 * 24)));
 
             const totalWealth = db.salary + db.cash; 
-            const totalRefunds = db.refunds.reduce((s,i) => s + i.v, 0); 
+            // A befizetés már közvetlenül megemelte az alapkeretet, ezért nem vonjuk le újra.
+            const totalRefunds = db.refunds.reduce((s,i) => s + (i.type === 'deposit' ? 0 : i.v), 0); 
             const momFinal = Math.max(0, db.momBase - totalRefunds); 
             const unpaidFixedSum = db.expenses.reduce((s,i) => s + (i.paid ? 0 : i.v), 0) + momFinal; 
             const finalCleanMoney = totalWealth - unpaidFixedSum;
@@ -571,7 +689,7 @@
             document.getElementById('val-salary').value = db.salary > 0 ? db.salary.toLocaleString('hu-HU') + ' Ft' : '';
             document.getElementById('val-cash').value = db.cash > 0 ? db.cash.toLocaleString('hu-HU') + ' Ft' : '';
             document.getElementById('val-target').value = db.target > 0 ? db.target.toLocaleString('hu-HU') + ' Ft' : '';
-            document.getElementById('val-mom-base').value = db.momBase > 0 ? db.momBase.toLocaleString('hu-HU') + ' Ft' : '';
+            document.getElementById('display-mom-base').innerText = db.momBase.toLocaleString('hu-HU') + ' Ft';
             document.getElementById('val-payday').value = db.payday;
 
             const exCont = document.getElementById('list-expenses');
@@ -590,15 +708,20 @@
             const refCont = document.getElementById('list-mom-refunds');
             const sortedRefunds = [...db.refunds].sort((a,b) => b.id - a.id);
             
-            refCont.innerHTML = sortedRefunds.map(ref => `
-                <div class="flex justify-between items-center bg-slate-900/40 p-3 rounded-xl border border-slate-800/50">
-                    <div class="flex flex-col"><span class="text-xs font-bold text-slate-300">${ref.dateStr}</span><span class="text-[10px] text-slate-500">${ref.time}</span></div>
-                    <div class="flex items-center gap-4">
-                        <span class="text-emerald-400 font-black">+ ${ref.v.toLocaleString('hu-HU')} Ft</span>
-                        <button onclick="remove(${ref.id}, 'refunds')" class="text-slate-600 hover:text-red-400 transition bg-slate-800 w-7 h-7 rounded-full flex items-center justify-center"><i class="fas fa-trash text-xs"></i></button>
-                    </div>
-                </div>
-            `).join('');
+            refCont.innerHTML = sortedRefunds.map(ref => {
+                const isDeposit = ref.type === 'deposit';
+                const label = isDeposit ? 'Befizetés' : 'Költés';
+                const color = isDeposit ? 'text-blue-400' : 'text-emerald-400';
+                const sign = isDeposit ? '+' : '−';
+                return `
+                    <div class="flex justify-between items-center bg-slate-900/40 p-3 rounded-xl border border-slate-800/50">
+                        <div class="flex flex-col"><span class="text-xs font-bold text-slate-300">${label} · ${ref.dateStr}</span><span class="text-[10px] text-slate-500">${ref.time || '—'}</span></div>
+                        <div class="flex items-center gap-4">
+                            <span class="${color} font-black">${sign} ${ref.v.toLocaleString('hu-HU')} Ft</span>
+                            <button onclick="remove(${ref.id}, 'refunds')" class="text-slate-600 hover:text-red-400 transition bg-slate-800 w-7 h-7 rounded-full flex items-center justify-center"><i class="fas fa-trash text-xs"></i></button>
+                        </div>
+                    </div>`;
+            }).join('');
             calculate();
         }
 
@@ -627,6 +750,10 @@
         
         function remove(id, type) { 
             if(confirm("Biztosan törölni szeretnéd ezt a tételt?")) {
+                const item = db[type].find(x => x.id === id);
+                if(type === 'refunds' && item && item.type === 'deposit') {
+                    db.momBase = Math.max(0, db.momBase - item.v);
+                }
                 db[type] = db[type].filter(x => x.id !== id); 
                 calculate(); 
                 render(); 
