@@ -734,7 +734,31 @@
                 }, {});
                 const dayGroups = Object.entries(groups);
                 const pageBottom = 276;
-                let nextY = 109;
+                // Az első oldal tudatosan csak a nagy, vezetői összesítőt tartalmazza.
+                let nextY = pageBottom + 1;
+
+                // Prémium, nagy méretű összesítő az első oldali üres tér kihasználására.
+                doc.setFillColor(248, 250, 252); doc.rect(0, 0, 210, 216, 'F');
+                doc.setFillColor(15, 23, 42); doc.rect(0, 0, 210, 58, 'F');
+                doc.setTextColor(255, 255, 255); doc.setFontSize(28); doc.text('HAVI ELSZÁMOLÁS', 15, 27);
+                doc.setTextColor(148, 163, 184); doc.setFontSize(13); doc.text(selectedMonth.toUpperCase(), 15, 42);
+                doc.text(`Készült: ${printedAt}`, 195, 42, { align: 'right' });
+
+                cards.forEach(card => {
+                    doc.setFillColor(255, 255, 255); doc.roundedRect(card.x, 70, 55, 52, 4, 4, 'F');
+                    doc.setDrawColor(203, 213, 225); doc.setLineWidth(0.35); doc.roundedRect(card.x, 70, 55, 52, 4, 4, 'S');
+                    doc.setFillColor(...card.color); doc.roundedRect(card.x, 70, 55, 5, 4, 4, 'F');
+                    doc.setTextColor(100, 116, 139); doc.setFontSize(10); doc.text(card.label, card.x + 4, 90);
+                    doc.setTextColor(15, 23, 42); doc.setFontSize(17); doc.text(card.value, card.x + 51, 109, { align: 'right' });
+                });
+
+                doc.setFillColor(236, 253, 245); doc.roundedRect(15, 137, 180, 66, 5, 5, 'F');
+                doc.setDrawColor(110, 231, 183); doc.setLineWidth(0.6); doc.roundedRect(15, 137, 180, 66, 5, 5, 'S');
+                doc.setTextColor(5, 150, 105); doc.setFontSize(12); doc.text('JELENLEG MÉG ELKÖLTHETŐ', 105, 157, { align: 'center' });
+                doc.setFontSize(35); doc.text(money(available), 105, 184, { align: 'center' });
+                doc.setFontSize(8); doc.setTextColor(100, 116, 139);
+                doc.text('Finance Pro - Havi pénzügyi összegző', 15, 291);
+                doc.text('Oldal 1', 195, 291, { align: 'right' });
                 const drawFooter = data => {
                     doc.setFontSize(7.5); doc.setTextColor(100, 116, 139);
                     doc.text('Finance Pro - Részletes, időbélyeges havi kimutatás', 15, 291);
@@ -743,7 +767,7 @@
 
                 if (!dayGroups.length) {
                     doc.autoTable({
-                        startY: nextY, head: [['TÉTELEK']],
+                        startY: 216, head: [['TÉTELEK']],
                         body: [['Ebben a hónapban nincs rögzített pénzmozgás.']],
                         theme: 'grid', margin: { left: 17, right: 17, bottom: 16 },
                         styles: { font: 'Roboto', fontSize: 10.5, cellPadding: 4, halign: 'center', textColor: [100, 116, 139] },
