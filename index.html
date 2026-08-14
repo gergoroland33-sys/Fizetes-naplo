@@ -786,7 +786,6 @@
                     }
 
                     const tableStartY = nextY;
-                    const startPage = doc.internal.getNumberOfPages();
                     const body = dayItems.map(item => {
                         const isDeposit = item.type === 'deposit';
                         const rowStyle = isDeposit
@@ -813,14 +812,24 @@
                         headStyles: { fillColor: [51, 65, 85], textColor: 255, fontStyle: 'bold', fontSize: 9.5, halign: 'center', cellPadding: 3.5 },
                         alternateRowStyles: { fillColor: [248, 250, 252] },
                         columnStyles: { 0: { cellWidth: 31 }, 1: { cellWidth: 46 }, 2: { cellWidth: 49, halign: 'right', textColor: [37, 99, 235] }, 3: { cellWidth: 49, halign: 'right', textColor: [220, 38, 38] } },
+                        // A külső keret cellánként készül, ezért oldalváltáskor sem maradhat el.
+                        didDrawCell: data => {
+                            const { x, y, width, height } = data.cell;
+                            const wideHeader = data.section === 'head' && data.row.index < 2;
+                            const leftEdge = wideHeader || data.column.index === 0;
+                            const rightEdge = wideHeader || data.column.index === 3;
+                            const topEdge = data.section === 'head' && data.row.index === 0;
+                            const bottomEdge = data.section === 'body' && data.row.index === data.table.body.length - 1;
+                            doc.setDrawColor(100, 116, 139);
+                            doc.setLineWidth(0.8);
+                            if (topEdge) doc.line(x, y, x + width, y);
+                            if (leftEdge) doc.line(x, y, x, y + height);
+                            if (rightEdge) doc.line(x + width, y, x + width, y + height);
+                            if (bottomEdge) doc.line(x, y + height, x + width, y + height);
+                        },
                         didDrawPage: drawFooter
                     });
 
-                    // A kártya külső kerete csak akkor rajzolódik körbe, ha valóban egy oldalon maradt.
-                    if (doc.internal.getNumberOfPages() === startPage) {
-                        doc.setDrawColor(100, 116, 139); doc.setLineWidth(0.8);
-                        doc.roundedRect(15.8, tableStartY - 1.6, 178.4, doc.lastAutoTable.finalY - tableStartY + 3.2, 3.5, 3.5, 'S');
-                    }
                     nextY = doc.lastAutoTable.finalY + 10;
                 });
 
