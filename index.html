@@ -95,7 +95,7 @@
             </section>
             
             <section class="glass-card p-5 border-l-4 border-l-red-500/50">
-                <div class="flex justify-between items-center mb-4 border-b border-slate-700/50 pb-3">
+                    <div class="flex justify-between items-center mb-4 border-b border-slate-700/50 pb-3">
                     <div class="flex items-center gap-3">
                         <span class="text-[10px] font-black text-red-400 uppercase tracking-wider">Fizetendő Fixek</span>
                     </div>
@@ -106,6 +106,10 @@
                         <input type="text" inputmode="none" id="val-payday" onclick="openKeypad(this)" class="w-10 bg-slate-800 text-center rounded-lg text-white py-1.5 border border-slate-600 focus:border-blue-500 focus:outline-none caret-blue-500 font-bold" value="10">
                     </div>
                 </div>
+
+                <button id="salary-received-btn" onclick="markSalaryReceivedToday()" class="w-full mb-4 py-3 rounded-xl bg-blue-950/40 border border-blue-500/30 text-blue-300 text-[11px] font-bold uppercase tracking-wider active:scale-[0.98] transition">
+                    <i class="fas fa-calendar-check mr-2"></i>Fizetés ma megérkezett
+                </button>
                 
                 <div id="list-expenses" class="space-y-2 mb-4"></div>
                 <button onclick="addExpense()" class="w-full py-3.5 border border-dashed border-slate-600 rounded-xl text-slate-400 text-[11px] font-bold uppercase tracking-wider hover:bg-slate-800/50 transition active:scale-95">+ Új számla hozzáadása</button>
@@ -239,7 +243,7 @@
     <script>
         // ADATBÁZIS BETÖLTÉSE
         let db = JSON.parse(localStorage.getItem('fin_v8_final')) || {
-            salary: 0, cash: 0, target: 0, payday: 10, momBase: 0,
+            salary: 0, cash: 0, target: 0, payday: 10, momBase: 0, lastPayReceivedAt: null,
             expenses: [], refunds: []
         };
 
@@ -843,6 +847,37 @@
             finally { document.getElementById('loading-overlay').classList.add('hidden'); }
         }
 
+        function getPaydayAfterEarlyReceipt(now) {
+            if (!db.lastPayReceivedAt) return null;
+            const receivedAt = new Date(db.lastPayReceivedAt);
+            if (Number.isNaN(receivedAt.getTime())) return null;
+
+            // Ha ebben a fizetési ciklusban korábban érkezett meg a pénz,
+            // a következő havi fizetésnapig számolunk, nem a közeli régi napig.
+            const nextAfterReceived = new Date(receivedAt.getFullYear(), receivedAt.getMonth() + 1, db.payday);
+            return nextAfterReceived > now ? nextAfterReceived : null;
+        }
+
+        function markSalaryReceivedToday() {
+            const now = new Date();
+            const alreadyMarkedToday = db.lastPayReceivedAt && new Date(db.lastPayReceivedAt).toDateString() === now.toDateString();
+
+            if (alreadyMarkedToday) {
+                if (confirm('Visszavonod a mai fizetés rögzítését?')) {
+                    db.lastPayReceivedAt = null;
+                    calculate();
+                    render();
+                }
+                return;
+            }
+
+            if (confirm('Rögzítsem, hogy a fizetés ma megérkezett? A napi keret innentől a következő fizetésnapig számolódik.')) {
+                db.lastPayReceivedAt = now.getTime();
+                calculate();
+                render();
+            }
+        }
+
         function calculate() {
             db.salary = getNum('val-salary');
             db.cash = getNum('val-cash');
@@ -862,6 +897,8 @@
             const now = new Date();
             let targetDate = new Date(now.getFullYear(), now.getMonth(), db.payday);
             if(now.getDate() >= db.payday) targetDate = new Date(now.getFullYear(), now.getMonth()+1, db.payday);
+            const earlyReceiptTarget = getPaydayAfterEarlyReceipt(now);
+            if (earlyReceiptTarget && earlyReceiptTarget > targetDate) targetDate = earlyReceiptTarget;
             const daysLeft = Math.max(1, Math.ceil((targetDate - now) / (1000 * 60 * 60 * 24)));
 
             const totalWealth = db.salary + db.cash; 
@@ -890,6 +927,18 @@
             document.getElementById('val-target').value = db.target > 0 ? db.target.toLocaleString('hu-HU') + ' Ft' : '';
             document.getElementById('display-mom-base').innerText = db.momBase.toLocaleString('hu-HU') + ' Ft';
             document.getElementById('val-payday').value = db.payday;
+
+            const salaryReceivedButton = document.getElementById('salary-received-btn');
+            const earlyReceiptTarget = getPaydayAfterEarlyReceipt(new Date());
+            if (salaryReceivedButton) {
+                if (earlyReceiptTarget) {
+                    salaryReceivedButton.innerHTML = `<i class="fas fa-check-circle mr-2"></i>Fizetés rögzítve · Következő: ${earlyReceiptTarget.toLocaleDateString('hu-HU')} <span class="opacity-60 ml-1">(visszavonás)</span>`;
+                    salaryReceivedButton.className = 'w-full mb-4 py-3 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 text-[11px] font-bold uppercase tracking-wider active:scale-[0.98] transition';
+                } else {
+                    salaryReceivedButton.innerHTML = '<i class="fas fa-calendar-check mr-2"></i>Fizetés ma megérkezett';
+                    salaryReceivedButton.className = 'w-full mb-4 py-3 rounded-xl bg-blue-950/40 border border-blue-500/30 text-blue-300 text-[11px] font-bold uppercase tracking-wider active:scale-[0.98] transition';
+                }
+            }
 
             const exCont = document.getElementById('list-expenses');
             exCont.innerHTML = db.expenses.map(ex => `
