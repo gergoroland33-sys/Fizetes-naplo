@@ -147,10 +147,13 @@
                     <!-- Befizetés: az alapkeretet növeli, a tranzakció a PDF-ben is megjelenik -->
                     <div class="bg-blue-950/20 p-4 rounded-2xl border border-blue-900/30 shadow-sm relative overflow-hidden">
                         <div class="absolute top-0 left-0 w-1.5 h-full bg-blue-400"></div>
-                        <label class="text-[10px] text-blue-400 font-bold uppercase mb-3 block pl-2 tracking-wider"><i class="fas fa-plus-circle mr-1"></i> Befizetés az alapkerethez</label>
+                        <div class="flex items-center justify-between pl-2 mb-3">
+                            <label class="text-[10px] text-blue-400 font-bold uppercase tracking-wider"><i class="fas fa-plus-circle mr-1"></i> Befizetés az alapkerethez</label>
+                            <button id="mom-deposit-lock-btn" type="button" onclick="toggleMomDepositLock()" class="w-8 h-8 rounded-lg bg-slate-900/80 border border-slate-600 text-slate-300 flex items-center justify-center active:scale-95 transition" aria-label="Befizetés feloldása" title="Befizetés feloldása"><i class="fas fa-lock text-xs"></i></button>
+                        </div>
                         <div class="flex gap-3 pl-2">
-                            <input type="text" inputmode="none" id="input-mom-deposit" onclick="openKeypad(this)" class="input-pro !py-3 bg-slate-900 border-blue-500/30 text-white text-center text-lg font-bold" placeholder="0 Ft">
-                            <button onclick="addMomDeposit()" class="bg-blue-500 w-16 rounded-xl text-white shadow-lg shadow-blue-500/20 active:scale-95 transition flex items-center justify-center" aria-label="Befizetés rögzítése"><i class="fas fa-plus text-xl"></i></button>
+                            <input type="text" inputmode="none" id="input-mom-deposit" onclick="openKeypad(this)" class="input-pro !py-3 bg-slate-900 border-blue-500/30 text-white text-center text-lg font-bold disabled:opacity-40 disabled:cursor-not-allowed" placeholder="0 Ft" disabled>
+                            <button id="mom-deposit-add-btn" onclick="addMomDeposit()" class="bg-blue-500 w-16 rounded-xl text-white shadow-lg shadow-blue-500/20 active:scale-95 transition flex items-center justify-center disabled:opacity-40 disabled:shadow-none" aria-label="Befizetés rögzítése" disabled><i class="fas fa-plus text-xl"></i></button>
                         </div>
                     </div>
 
@@ -249,6 +252,7 @@
 
         // --- CUSTOM KEYPAD LOGIC ---
         let activeInput = null;
+        let momDepositUnlocked = false;
         const keypadEl = document.getElementById('custom-keypad');
         const navEl = document.getElementById('bottom-nav');
 
@@ -374,6 +378,31 @@
             return window.btoa(binary);
         }
 
+        function setMomDepositLock(unlocked) {
+            momDepositUnlocked = unlocked;
+            const input = document.getElementById('input-mom-deposit');
+            const addButton = document.getElementById('mom-deposit-add-btn');
+            const lockButton = document.getElementById('mom-deposit-lock-btn');
+            if (!input || !addButton || !lockButton) return;
+
+            input.disabled = !unlocked;
+            addButton.disabled = !unlocked;
+            if (!unlocked) {
+                input.value = '';
+                if (activeInput === input) closeKeypad();
+            }
+            lockButton.innerHTML = unlocked ? '<i class="fas fa-lock-open text-xs"></i>' : '<i class="fas fa-lock text-xs"></i>';
+            lockButton.title = unlocked ? 'Befizetés lezárása' : 'Befizetés feloldása';
+            lockButton.setAttribute('aria-label', lockButton.title);
+            lockButton.className = unlocked
+                ? 'w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-400/50 text-emerald-300 flex items-center justify-center active:scale-95 transition'
+                : 'w-8 h-8 rounded-lg bg-slate-900/80 border border-slate-600 text-slate-300 flex items-center justify-center active:scale-95 transition';
+        }
+
+        function toggleMomDepositLock() {
+            setMomDepositLock(!momDepositUnlocked);
+        }
+
         function quickAdd() {
             const el = document.getElementById('input-quick');
             const v = getNum('input-quick');
@@ -394,6 +423,7 @@
         }
 
         function addMomDeposit() {
+            if (!momDepositUnlocked) return;
             const el = document.getElementById('input-mom-deposit');
             const value = getNum('input-mom-deposit');
             if(value <= 0) return;
@@ -409,6 +439,7 @@
                 time: d.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
             });
             el.value = '';
+            momDepositUnlocked = false;
             calculate();
             render();
         }
@@ -782,8 +813,9 @@
                 dayGroups.forEach(([date, dayItems]) => {
                     const dayDeposit = dayItems.filter(r => r.type === 'deposit').reduce((sum, r) => sum + r.v, 0);
                     const dayExpense = dayItems.filter(r => r.type !== 'deposit').reduce((sum, r) => sum + r.v, 0);
+                    const isToday = date === now.toLocaleDateString('hu-HU');
                     // Óvatos, kissé túlbecsült magasság: így a teljes napi kártya együtt indul az oldalon.
-                    const estimatedHeight = 34 + dayItems.length * 12;
+                    const estimatedHeight = 34 + dayItems.length * 12 + (isToday ? 6 : 0);
                     if (nextY + estimatedHeight > pageBottom) {
                         doc.addPage();
                         nextY = 18;
@@ -807,7 +839,7 @@
                         startY: tableStartY,
                         head: [
                             [{ content: `DÁTUM: ${date}`, colSpan: 4, styles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: 'bold', fontSize: 14, cellPadding: 4.8, halign: 'left' } }],
-                            [{ content: `Napi befizetés: ${money(dayDeposit)}    |    Napi költés: ${money(dayExpense)}`, colSpan: 4, styles: { fillColor: [226, 232, 240], textColor: [30, 41, 59], fontStyle: 'bold', fontSize: 10.5, cellPadding: 3.7, halign: 'left' } }],
+                            [{ content: `${isToday ? 'MAI ÖSSZESÍTŐ  |  ' : ''}Napi befizetés: ${money(dayDeposit)}    |    Napi költés: ${money(dayExpense)}`, colSpan: 4, styles: isToday ? { fillColor: [12, 74, 110], textColor: 255, fontStyle: 'bold', fontSize: 13, cellPadding: 5.2, halign: 'left' } : { fillColor: [226, 232, 240], textColor: [30, 41, 59], fontStyle: 'bold', fontSize: 10.5, cellPadding: 3.7, halign: 'left' } }],
                             ['IDŐ', 'TÍPUS', 'BEFIZETÉS', 'KÖLTÉS']
                         ],
                         body, theme: 'grid', pageBreak: 'avoid', rowPageBreak: 'avoid', showHead: 'everyPage',
@@ -971,6 +1003,7 @@
                     </div>`;
             }).join('');
             calculate();
+            setMomDepositLock(momDepositUnlocked);
         }
 
         // FÜLVÁLTÁS (Anyu nézetben elrejtjük a zavaró adataidat)
