@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="hu">
 <head>
@@ -81,15 +82,15 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div class="col-span-2 space-y-1.5">
                         <label class="text-[11px] font-bold text-slate-400 ml-1">OTP</label>
-                        <input type="text" inputmode="none" id="val-salary" onclick="openKeypad(this)" class="input-pro text-xl font-bold text-blue-400" placeholder="0 Ft">
+                        <input type="text" inputmode="none" id="val-salary" onclick="openKeypad(this)" class="input-pro text-xl font-bold text-blue-400" placeholder="0 Ft" readonly>
                     </div>
                     <div class="space-y-1.5">
                         <label class="text-[11px] font-bold text-slate-400 ml-1">Készpénz</label>
-                        <input type="text" inputmode="none" id="val-cash" onclick="openKeypad(this)" class="input-pro" placeholder="0 Ft">
+                        <input type="text" inputmode="none" id="val-cash" onclick="openKeypad(this)" class="input-pro" placeholder="0 Ft" readonly>
                     </div>
                     <div class="space-y-1.5">
                         <label class="text-[11px] font-bold text-slate-400 ml-1">Célösszeg</label>
-                        <input type="text" inputmode="none" id="val-target" onclick="openKeypad(this)" class="input-pro" placeholder="0 Ft">
+                        <input type="text" inputmode="none" id="val-target" onclick="openKeypad(this)" class="input-pro" placeholder="0 Ft" readonly>
                     </div>
                 </div>
             </section>
@@ -103,7 +104,7 @@
                         <span class="text-[10px] font-bold text-slate-400 uppercase ml-1">Hátra: <span id="display-days-left" class="text-blue-400 font-bold ml-1 mr-1">0 NAP</span></span>
                         <div class="h-4 w-px bg-slate-600 mx-1"></div>
                         <span class="text-[10px] text-slate-400 uppercase font-bold">Nap:</span>
-                        <input type="text" inputmode="none" id="val-payday" onclick="openKeypad(this)" class="w-10 bg-slate-800 text-center rounded-lg text-white py-1.5 border border-slate-600 focus:border-blue-500 focus:outline-none caret-blue-500 font-bold" value="10">
+                        <input type="tel" inputmode="numeric" id="val-payday" oninput="handleNativePaydayInput(this)" class="w-10 bg-slate-800 text-center rounded-lg text-white py-1.5 border border-slate-600 focus:border-blue-500 focus:outline-none caret-blue-500 font-bold" value="10">
                     </div>
                 </div>
 
@@ -152,7 +153,7 @@
                             <button id="mom-deposit-lock-btn" type="button" onclick="toggleMomDepositLock()" class="w-8 h-8 rounded-lg bg-slate-900/80 border border-slate-600 text-slate-300 flex items-center justify-center active:scale-95 transition" aria-label="Befizetés feloldása" title="Befizetés feloldása"><i class="fas fa-lock text-xs"></i></button>
                         </div>
                         <div class="flex gap-3 pl-2">
-                            <input type="text" inputmode="none" id="input-mom-deposit" onclick="openKeypad(this)" class="input-pro !py-3 bg-slate-900 border-blue-500/30 text-white text-center text-lg font-bold disabled:opacity-40 disabled:cursor-not-allowed" placeholder="0 Ft" disabled>
+                            <input type="text" inputmode="none" id="input-mom-deposit" onclick="openKeypad(this)" class="input-pro !py-3 bg-slate-900 border-blue-500/30 text-white text-center text-lg font-bold disabled:opacity-40 disabled:cursor-not-allowed" placeholder="0 Ft" disabled readonly>
                             <button id="mom-deposit-add-btn" onclick="addMomDeposit()" class="bg-blue-500 w-16 rounded-xl text-white shadow-lg shadow-blue-500/20 active:scale-95 transition flex items-center justify-center disabled:opacity-40 disabled:shadow-none" aria-label="Befizetés rögzítése" disabled><i class="fas fa-plus text-xl"></i></button>
                         </div>
                     </div>
@@ -179,7 +180,7 @@
                 <div class="bg-gradient-to-r from-emerald-900/30 to-slate-900 p-5 rounded-2xl border border-emerald-500/20 mb-6 shadow-inner">
                     <label class="text-[10px] text-emerald-500 font-bold uppercase mb-3 block ml-1 tracking-wider"><i class="fas fa-bolt mr-1"></i> Költés rögzítése</label>
                     <div class="flex gap-3">
-                        <input type="text" inputmode="none" id="input-quick" onclick="openKeypad(this)" class="input-pro bg-slate-900 border-emerald-500/30 text-white text-center text-xl font-bold" placeholder="0 Ft">
+                        <input type="text" inputmode="none" id="input-quick" onclick="openKeypad(this)" class="input-pro bg-slate-900 border-emerald-500/30 text-white text-center text-xl font-bold" placeholder="0 Ft" readonly>
                         <button onclick="quickAdd()" class="bg-emerald-500 w-16 rounded-xl text-white shadow-lg shadow-emerald-500/20 active:scale-95 transition flex items-center justify-center"><i class="fas fa-plus text-xl"></i></button>
                     </div>
                 </div>
@@ -206,7 +207,7 @@
                 <button onclick="keyPadInput('4')" class="key-btn">4</button>
                 <button onclick="keyPadInput('5')" class="key-btn">5</button>
                 <button onclick="keyPadInput('6')" class="key-btn">6</button>
-                <button onclick="keyPadAction('abc')" class="key-btn bg-blue-900/20 text-blue-400 border-blue-900/50 text-xs font-black">ABC</button>
+                <button onclick="keyPadInput('00')" class="key-btn bg-blue-900/20 text-blue-400 border-blue-900/50 text-sm font-black">00</button>
 
                 <button onclick="keyPadInput('1')" class="key-btn">1</button>
                 <button onclick="keyPadInput('2')" class="key-btn">2</button>
@@ -293,6 +294,8 @@
             
             activeInput = el;
             activeInput.classList.add('input-active');
+            // iOS így nem nyithatja meg a rendszer billentyűzetét a saját keypad mellett.
+            el.blur();
             
             keypadEl.classList.add('visible');
             navEl.style.transform = 'translateY(100%)';
@@ -375,15 +378,20 @@
                 }
             }
             else if (action === 'abc') {
-                activeInput.removeAttribute('inputmode');
-                activeInput.focus();
-                closeKeypad();
+                return;
             }
         }
 
         window.visualViewport?.addEventListener('resize', scheduleActiveInputVisibility);
         window.visualViewport?.addEventListener('scroll', scheduleActiveInputVisibility);
         window.addEventListener('orientationchange', () => setTimeout(scheduleActiveInputVisibility, 100));
+
+        function handleNativePaydayInput(el) {
+            let value = el.value.replace(/\D/g, '').slice(0, 2);
+            if (Number(value) > 31) value = '31';
+            el.value = value;
+            calculate();
+        }
 
         function getNum(id) {
             const el = document.getElementById(id);
@@ -1020,7 +1028,7 @@
                         <span class="slider"></span>
                     </label>
                     <input type="text" enterkeyhint="next" id="ex-n-${ex.id}" value="${ex.n}" oninput="calculate()" class="w-full text-sm py-2 px-2 border-none bg-transparent text-white focus:outline-none" placeholder="Számla neve">
-                    <input type="text" inputmode="none" onclick="openKeypad(this)" id="ex-v-${ex.id}" value="${ex.v > 0 ? ex.v.toLocaleString('hu-HU') + ' Ft' : ''}" class="w-28 text-right py-2 px-1 font-bold border-none bg-transparent ${ex.paid ? 'text-slate-500' : 'text-red-400'} focus:outline-none caret-red-500" placeholder="0 Ft">
+                    <input type="text" inputmode="decimal" id="ex-v-${ex.id}" value="${ex.v > 0 ? ex.v.toLocaleString('hu-HU') + ' Ft' : ''}" oninput="calculate()" onblur="formatInput(this); calculate()" class="w-28 text-right py-2 px-1 font-bold border-none bg-transparent ${ex.paid ? 'text-slate-500' : 'text-red-400'} focus:outline-none caret-red-500" placeholder="0 Ft">
                     <button onclick="remove(${ex.id}, 'expenses')" class="text-slate-500 px-2 py-1 hover:text-red-500 transition"><i class="fas fa-times"></i></button>
                 </div>
             `).join('');
