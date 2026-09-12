@@ -256,6 +256,38 @@
         const keypadEl = document.getElementById('custom-keypad');
         const navEl = document.getElementById('bottom-nav');
 
+        // A saját billentyűzet nem módosítja a dokumentum magasságát, ezért iPhone-on
+        // külön a ténylegesen látható területre igazítjuk az aktív mezőt.
+        function keepActiveInputVisible() {
+            if (!activeInput || !keypadEl.classList.contains('visible')) return;
+
+            const inputRect = activeInput.getBoundingClientRect();
+            const headerEl = document.getElementById('global-header');
+            const headerBottom = headerEl && headerEl.style.display !== 'none'
+                ? Math.max(18, headerEl.getBoundingClientRect().bottom + 12)
+                : 18;
+            const viewportHeight = window.visualViewport?.height || window.innerHeight;
+            const keypadHeight = keypadEl.getBoundingClientRect().height;
+            const safeBottom = Math.max(headerBottom + 54, viewportHeight - keypadHeight - 16);
+            const safeCenter = headerBottom + ((safeBottom - headerBottom) / 2);
+            const inputCenter = inputRect.top + (inputRect.height / 2);
+            const scrollDelta = inputCenter - safeCenter;
+
+            if (Math.abs(scrollDelta) > 8) {
+                const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+                const nextScroll = Math.max(0, Math.min(maxScroll, window.scrollY + scrollDelta));
+                window.scrollTo({ top: nextScroll, behavior: 'auto' });
+            }
+        }
+
+        function scheduleActiveInputVisibility() {
+            if (!activeInput) return;
+            requestAnimationFrame(() => {
+                keepActiveInputVisible();
+                requestAnimationFrame(keepActiveInputVisible);
+            });
+        }
+
         function openKeypad(el) {
             if(activeInput) activeInput.classList.remove('input-active');
             
@@ -265,11 +297,9 @@
             keypadEl.classList.add('visible');
             navEl.style.transform = 'translateY(100%)';
             
-            setTimeout(() => {
-                if (activeInput === el) { 
-                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-            }, 300);
+            scheduleActiveInputVisibility();
+            setTimeout(scheduleActiveInputVisibility, 60);
+            setTimeout(scheduleActiveInputVisibility, 260);
         }
 
         function closeKeypad() {
@@ -310,6 +340,7 @@
             
             activeInput.dispatchEvent(new Event('input'));
             calculate();
+            scheduleActiveInputVisibility();
         }
 
         function keyPadAction(action) {
@@ -332,6 +363,7 @@
                 
                 activeInput.dispatchEvent(new Event('input'));
                 calculate();
+                scheduleActiveInputVisibility();
             } 
             else if (action === 'enter') {
                 if(activeInput.id === 'input-quick') {
@@ -349,6 +381,10 @@
             }
         }
 
+        window.visualViewport?.addEventListener('resize', scheduleActiveInputVisibility);
+        window.visualViewport?.addEventListener('scroll', scheduleActiveInputVisibility);
+        window.addEventListener('orientationchange', () => setTimeout(scheduleActiveInputVisibility, 100));
+
         function getNum(id) {
             const el = document.getElementById(id);
             return el ? (Number(el.value.replace(/\D/g, '')) || 0) : 0;
@@ -362,8 +398,8 @@
             }, 800);
         }
 
-        async function loadFont() {
-            const response = await fetch('https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.66/fonts/Roboto/Roboto-Regular.ttf');
+        async function loadFont(fileName = 'Roboto-Regular.ttf') {
+            const response = await fetch(`https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.66/fonts/Roboto/${fileName}`);
             const buffer = await response.arrayBuffer();
             return buffer;
         }
@@ -607,9 +643,13 @@
                     const fontBuffer = await loadFont();
                     doc.addFileToVFS('Roboto-Regular.ttf', arrayBufferToBase64(fontBuffer));
                     doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
-                    doc.addFont('Roboto-Regular.ttf', 'Roboto', 'bold');
                     doc.setFont('Roboto');
-                } catch (e) { console.warn('PDF font fallback:', e); }
+                } catch (e) { console.warn('PDF regular font fallback:', e); }
+                try {
+                    const boldFontBuffer = await loadFont('Roboto-Bold.ttf');
+                    doc.addFileToVFS('Roboto-Bold.ttf', arrayBufferToBase64(boldFontBuffer));
+                    doc.addFont('Roboto-Bold.ttf', 'Roboto', 'bold');
+                } catch (e) { console.warn('PDF bold font fallback:', e); }
 
                 // Legújabb nap és legújabb tétel legfelül az exportban.
                 const items = db.refunds.filter(r => r.monthKey === selectedMonth).sort((a, b) => b.id - a.id);
@@ -815,7 +855,7 @@
                     const dayExpense = dayItems.filter(r => r.type !== 'deposit').reduce((sum, r) => sum + r.v, 0);
                     const isToday = date === now.toLocaleDateString('hu-HU');
                     // Óvatos, kissé túlbecsült magasság: így a teljes napi kártya együtt indul az oldalon.
-                    const estimatedHeight = 34 + dayItems.length * 12 + (isToday ? 6 : 0);
+                    const estimatedHeight = 36 + dayItems.length * 13.5 + (isToday ? 6 : 0);
                     if (nextY + estimatedHeight > pageBottom) {
                         doc.addPage();
                         nextY = 18;
@@ -826,10 +866,10 @@
                         const isDeposit = item.type === 'deposit';
                         const rowStyle = isDeposit
                             ? { fillColor: [219, 234, 254], textColor: [30, 64, 175], fontStyle: 'bold' }
-                            : {};
+                            : { fillColor: [254, 242, 242], textColor: [153, 27, 27], fontStyle: 'bold' };
                         return [
                             { content: item.time || '-', styles: rowStyle },
-                            { content: isDeposit ? 'Befizetés' : 'Költés', styles: rowStyle },
+                            { content: isDeposit ? 'BEFIZETÉS' : 'KIFIZETÉS', styles: rowStyle },
                             { content: isDeposit ? money(item.v) : '-', styles: rowStyle },
                             { content: isDeposit ? '-' : money(item.v), styles: rowStyle }
                         ];
@@ -838,14 +878,14 @@
                     doc.autoTable({
                         startY: tableStartY,
                         head: [
-                            [{ content: `DÁTUM: ${date}`, colSpan: 4, styles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: 'bold', fontSize: 14, cellPadding: 4.8, halign: 'left' } }],
-                            [{ content: `${isToday ? 'MAI ÖSSZESÍTŐ  |  ' : ''}Napi befizetés: ${money(dayDeposit)}    |    Napi költés: ${money(dayExpense)}`, colSpan: 4, styles: isToday ? { fillColor: [12, 74, 110], textColor: 255, fontStyle: 'bold', fontSize: 13, cellPadding: 5.2, halign: 'left' } : { fillColor: [226, 232, 240], textColor: [30, 41, 59], fontStyle: 'bold', fontSize: 10.5, cellPadding: 3.7, halign: 'left' } }],
+                            [{ content: `DÁTUM: ${date}`, colSpan: 4, styles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: 'bold', fontSize: 15, cellPadding: 4.8, halign: 'left' } }],
+                            [{ content: `${isToday ? 'MAI ÖSSZESÍTŐ  |  ' : ''}Napi befizetés: ${money(dayDeposit)}    |    Napi költés: ${money(dayExpense)}`, colSpan: 4, styles: isToday ? { fillColor: [12, 74, 110], textColor: 255, fontStyle: 'bold', fontSize: 13, cellPadding: 5.2, halign: 'left' } : { fillColor: [226, 232, 240], textColor: [30, 41, 59], fontStyle: 'bold', fontSize: 11.5, cellPadding: 3.5, halign: 'left' } }],
                             ['IDŐ', 'TÍPUS', 'BEFIZETÉS', 'KÖLTÉS']
                         ],
                         body, theme: 'grid', pageBreak: 'avoid', rowPageBreak: 'avoid', showHead: 'everyPage',
                         margin: { left: 17, right: 17, bottom: 16 },
-                        styles: { font: 'Roboto', fontSize: 10.5, cellPadding: 4, textColor: [30, 41, 59], lineColor: [203, 213, 225], lineWidth: 0.2 },
-                        headStyles: { fillColor: [51, 65, 85], textColor: 255, fontStyle: 'bold', fontSize: 9.5, halign: 'center', cellPadding: 3.5 },
+                        styles: { font: 'Roboto', fontSize: 11, fontStyle: 'bold', cellPadding: 3.3, textColor: [30, 41, 59], lineColor: [203, 213, 225], lineWidth: 0.2 },
+                        headStyles: { fillColor: [51, 65, 85], textColor: 255, fontStyle: 'bold', fontSize: 10, halign: 'center', cellPadding: 3.2 },
                         alternateRowStyles: { fillColor: [248, 250, 252] },
                         columnStyles: { 0: { cellWidth: 31 }, 1: { cellWidth: 46 }, 2: { cellWidth: 49, halign: 'right', textColor: [37, 99, 235] }, 3: { cellWidth: 49, halign: 'right', textColor: [220, 38, 38] } },
                         // A külső keret cellánként készül, ezért oldalváltáskor sem maradhat el.
@@ -866,7 +906,7 @@
                         didDrawPage: drawFooter
                     });
 
-                    nextY = doc.lastAutoTable.finalY + 10;
+                    nextY = doc.lastAutoTable.finalY + 6;
                 });
 
                 const pdfOutput = doc.output('blob');
